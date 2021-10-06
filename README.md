@@ -69,8 +69,7 @@ Example run command to train CTL-Model on DukeMTMC-reID
 ```bash
 CUDA_VISIBLE_DEVICES=3 ./train_scripts/dukemtmc/train_ctl_model_s_r50_dukemtmc.sh
 ```
-`CUDA_VISIBLE_DEVICES` controls which GPUs are visible to the scripts.  
-`GPU_IDS` parameter in train scripts allows to adjust the number of used GPUs for the given training.
+`CUDA_VISIBLE_DEVICES` controls which GPUs are visible to the scripts.
 
 By default all train scripts will launch 3 experiments.
 
@@ -95,6 +94,10 @@ SOLVER.EVAL_PERIOD 40 \
 TEST.ONLY_TEST True \
 MODEL.PRETRAIN_PATH "logs/market1501/256_resnet50/train_ctl_model/version_0/checkpoints/epoch=119.ckpt"
 ```
+
+## Trained model weights
+
+Weights of trained CTL-Model on Market1501 and DuketMTMC-Reid are avaialable here [[link]](https://drive.google.com/drive/folders/1NWD2Q0JGasGm9HTcOy4ZqsIqK4-IfknK)
 
 ## **Citation**
 
