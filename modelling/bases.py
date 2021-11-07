@@ -199,7 +199,6 @@ class ModelBase(pl.LightningModule):
 
         unique_labels = sorted(np.unique(list(labels2idx.keys())))
 
-        pids_available = True
         centroids_embeddings = []
         centroids_labels = []
 
@@ -207,31 +206,11 @@ class ModelBase(pl.LightningModule):
             centroids_camids = []
             query_camid = camids[:num_query]
 
-        # n = 0
-        # for label in unique_labels:
-        #     inds = labels2idx[label]
-        #     selected_camids = camids[inds]
-        #     unique_camids = sorted(np.unique(selected_camids))
-        #     for current_camid in unique_camids:
-        #         n += 1
-
         # Create centroids for each pid seperately
         for label in unique_labels:
             cmaids_combinations = set()
-
-            if int(label) == 807:
-                print(807)
-                # For pid=807 for Market1501 There is a case that
-                # all gallery images come from cameraid [1-5], but query images
-                # is also from cameraid = 0, so for this query from cameraid=0,
-                # there are 5 centroids that are build without cmaeraid=0 in galerry
-                # combinations [1,2,3,4,5], [2,3,4,5], [1,2,4,5], [1,2,3,5], [1,2,3,4]
             inds = labels2idx[label]
             inds_q = labels2idx_q[label]
-            if len(inds) == 0:
-                continue
-            if label == 39:
-                print(label)
             if respect_camids:
                 selected_camids_g = camids[inds]
 
@@ -253,8 +232,6 @@ class ModelBase(pl.LightningModule):
                         centroids_emb = embeddings_gallery[inds][camid_inds]
                         centroids_emb = self._calculate_centroids(centroids_emb, dim=0)
                         centroids_embeddings.append(centroids_emb.detach().cpu())
-                        # Mark this centroid with the cameraId that is NOT INCLUDED in the images
-                        # centroids_camids.append(current_camid)
                         centroids_camids.append(used_camids)
                         centroids_labels.append(label)
 
@@ -272,8 +249,6 @@ class ModelBase(pl.LightningModule):
         centroids_labels = np.hstack((labels_query, np.array(centroids_labels)))
 
         if respect_camids:
-            # centroids_camids = np.array(centroids_camids)
-            # centroids_camids = np.hstack((query_camid, centroids_camids))
             query_camid = [[item] for item in query_camid]
             centroids_camids = query_camid + centroids_camids
 
@@ -400,7 +375,6 @@ class ModelBase(pl.LightningModule):
         for _ in range(max_gal_num):
             for i, inner_list in enumerate(labels_list):
                 if len(inner_list) > 0:
-                    # random.shuffle(inner_list)
                     masks[_, inner_list.pop(0)] = 0
                 else:
                     start_ind = lens_list_cs[i - 1]

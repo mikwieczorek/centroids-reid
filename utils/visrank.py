@@ -87,11 +87,6 @@ def visualize_ranked_results(
             cmaids_combinations = set()
             inds = labels2idx[label]
             inds_q = labels2idx_q[label]
-            if len(inds) == 0:
-                continue
-            if label == 39:
-                print(label)
-
             if respect_camids:
                 selected_camids_g = camids[inds]
 
