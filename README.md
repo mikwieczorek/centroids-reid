@@ -8,7 +8,7 @@ Paper accepted to ICONIP 2021 conference.
 The whole model is implemented in PyTorch-Lightning framework.
 
 1. `cd` to a directory where you want to clone this repo
-2. Run `git clone https://github.com/mikwieczorek/iconip2021-centroids-retrieval.git`
+2. Run `git clone https://github.com/mikwieczorek/centroids-reid.git`
 3. Install required packages `pip install -r requirements.txt`
 4. Download pre-trained weights into `models/` directory for:
     - Resnet50 from here: [[link]](https://download.pytorch.org/models/resnet50-19c8e357.pth)
