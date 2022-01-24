@@ -58,10 +58,10 @@ class COCO_json(object):
         data_captured="",
     ):
         image = {
-            "id": image_id,
+            "id": int(image_id),
             "file_name": file_name,
-            "width": width,
-            "height": height,
+            "width": int(width),
+            "height": int(height),
             "license": license,
             "flickr_url": flickr_url,
             "coco_url": coco_url,
@@ -71,13 +71,9 @@ class COCO_json(object):
         return image
 
     def create_images_info_all(self):
-
         self.images = []
         for image_name in self.images_names:
-            # try:
             width, height = get_images_size(os.path.join(self.images_dir, image_name))
-            # except FileNotFoundError:
-                # width, height = 1,1    
             img_id = get_image_id(image_name)
             self.images.append(
                 self.create_image_info(
@@ -89,13 +85,13 @@ class COCO_json(object):
         self, anno_id, image_id, category_id, bbox, segmentation="", area="", iscrowd=0
     ):
         annotation = {
-            "id": anno_id,
-            "image_id": image_id,
-            "category_id": category_id,
+            "id": int(anno_id),
+            "image_id": int(image_id),
+            "category_id": int(category_id),
             "segmentation": segmentation,
             "area": area,
             "bbox": bbox,
-            "iscrowd": iscrowd,
+            "iscrowd": int(iscrowd),
         }
 
         return annotation

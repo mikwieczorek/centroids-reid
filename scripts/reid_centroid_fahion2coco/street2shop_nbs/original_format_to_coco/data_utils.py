@@ -113,7 +113,10 @@ def get_all_images_in_dir(dir_path, ext):
 
 
 def get_images_size(path):
-    image = Image.open(path)
+    try:  # TODO REMOVE TRY EXCEPT
+        image = Image.open(path)
+    except:
+        return (1, 1)
     return image.size
 
 

@@ -20,7 +20,9 @@ def main():
     coco_json_save_name = "all_street_train.json"
     coco_json_save_path = os.path.join(save_dir, coco_json_save_name)
     meta_dir = os.path.join(working_dir, "meta")
-    categories_dict = load_json("scripts/reid_centroid_fahion2coco/street2shop_nbs/original_format_to_coco/street2shop_categories.json")
+    categories_dict = load_json(
+        "scripts/reid_centroid_fahion2coco/street2shop_nbs/original_format_to_coco/street2shop_categories.json"
+    )
 
     # # Create single txt files with names of all images in train / test set
     extract_json_data(
@@ -67,9 +69,9 @@ def main():
         categories_dict=categories_dict,
         sets=["train", "test"],
         images_names=images_names,
-        meta_dir=meta_dir
+        meta_dir=meta_dir,
     )
-    coco_json.create_full_coco_json(transform_bbox_s2s_to_coco)
+    coco_json.create_full_coco_json(bbox_transform_func=transform_bbox_s2s_to_coco)
     save_json(coco_json.json, coco_json_save_path, mode="w")
     print("Street2Shop_to_coco processing finished")
 
