@@ -1,17 +1,22 @@
+import argparse
+import copy
 import glob
+import json
+import logging
 import os
 import shutil
-import json
-
-from PIL import Image
-import numpy as np
-import copy
-from pathlib import Path
 from collections import Counter
+from pathlib import Path
+from typing import List
+
+import numpy as np
+from PIL import Image, ImageFile
 from tqdm import tqdm
 
+ImageFile.LOAD_TRUNCATED_IMAGES = True
 
-from typing import List
+logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO"))
+log = logging.getLogger(__name__)
 
 ORIGINAL_CATEGORIES = [
     "bags",
@@ -107,7 +112,7 @@ def create_annotations(
     category_id,
     bbox="",
     pair_id="",
-    style="",
+    # style="",
     segmentation="",
     source="",
     area=0,
@@ -122,7 +127,7 @@ def create_annotations(
         "bbox": bbox,
         "iscrowd": int(iscrowd),
         "pair_id": int(pair_id),
-        "style": style,
+        # "style": style,
         "source": source,
     }
 
@@ -261,7 +266,7 @@ def create_coco_json_with_unique_pair_id_per_category(
                 category_id,
                 bbox=bbox,
                 pair_id=pair_id,
-                style=style_id,
+                # style=style_id,
                 segmentation="",
                 source=source,
                 area=area,
@@ -317,7 +322,7 @@ def create_coco_json_with_unique_pair_id_per_category(
                 category_id,
                 bbox=bbox,
                 pair_id=pair_id,
-                style=style_id,
+                # style=style_id,
                 segmentation="",
                 source=source,
                 area=area,
@@ -372,8 +377,8 @@ def split_test_to_query_gallery(category_name: str, load_dir: str):
             item["id"]
             for item in test["annotations"]
             if item["source"] == "user"
-            and item["style"]
-            >= 0  ### TODO Style is deep fasion 2 attribute may be deleted
+            # and item["style"]
+            # >= 0  ### TODO Style is deep fasion 2 attribute may be deleted
         ]
     )
     users_annotations = list(
@@ -486,10 +491,6 @@ def crop_train_images(
     for name, IMAGE_SAVE_DIR, dataset in zip(
         SET_NAMES, save_paths_names, datasets_for_recalculating
     ):
-        # if name == "gallery" and category_name == "tops":
-        #     # TODO Sprawdzić dlacego gallery dla tops wychodzi puste na końcu
-        #     if 1 == 1:
-        #         pass
         images_info = []
         annotations_list = []
 
@@ -502,7 +503,7 @@ def crop_train_images(
             ]
 
             for img_idx, anno in enumerate(annos_per_img):
-                anno_style = anno["style"]
+                # anno_style = anno["style"]
                 anno_pair_id = anno["pair_id"]
                 anno_cat_id = anno["category_id"]
                 anno_bbox = anno["bbox"]
@@ -550,7 +551,7 @@ def crop_train_images(
                     category_id=anno_cat_id,
                     bbox="",
                     pair_id=new_pair_id,
-                    style=anno_style,
+                    # style=anno_style,
                     segmentation="",
                     area=anno_area,
                     iscrowd=0,
@@ -630,16 +631,79 @@ def merge_single_set_jsons(
 
 
 if __name__ == "__main__":
-    all_train_json_load_path = (
-        "/data/mwieczorek/home/data/street2shop/new_meta_test/all_street_train.json"
+    parser = argparse.ArgumentParser(
+        description="Script to transform COCO-format Street2Shop annotations to ReID-ready COCO format."
     )
-    root_dir = Path("/data/mwieczorek/home/data/street2shop/")
-    meta_dir = root_dir / "meta"
-    images_dir = root_dir / "images"
-    save_dir = root_dir / "new_meta_dir"
-    TARGET_IMAGE_SIZE = (224, 244)
-    MINIMUM_BBOX_AREA = 1
+    parser.add_argument(
+        "--train-json-path",
+        help="path to json file produed by 'street2shop_to_coco.py' script",
+        type=str,
+        required=True,
+    )
+    parser.add_argument(
+        "--root-dir-path",
+        help="path to root directory of Steet2Shop data",
+        type=str,
+        required=True,
+    )
+    parser.add_argument(
+        "--metadata-dir",
+        help="directory name with Steet2Shop metadata",
+        type=str,
+        required=True,
+    )
+    parser.add_argument(
+        "--images-dir",
+        help="directory name with Steet2Shop images",
+        type=str,
+        required=True,
+    )
+    parser.add_argument(
+        "--save-dir",
+        help="directory name where all new data will be saved",
+        type=str,
+        required=True,
+    )
+    parser.add_argument(
+        "--target-image-size",
+        help=(
+            "size of images that will be fed into the network.\
+Script crops the bounding boxes and resizes them to the target size. Width x Height"
+        ),
+        required=False,
+        type=int,
+        nargs="+",
+        default=[320, 320],
+    )
+    parser.add_argument(
+        "--minimum-bbox-area",
+        help=(
+            "minimum area in pixels covered by bounding boxes. If the area is smaller than the threshold the annotation is discarded."
+        ),
+        type=int,
+        required=False,
+        default=1,
+    )
 
+    args = parser.parse_args()
+
+    # all_train_json_load_path = (
+    #     "/data/mwieczorek/home/data/street2shop/new_meta_test/all_street_train.json"
+    # )
+    # root_dir = Path("/data/mwieczorek/home/data/street2shop/")
+    # meta_dir = root_dir / "meta"
+    # images_dir = root_dir / "images"
+    # save_dir = root_dir / "new_meta_dir"
+    # TARGET_IMAGE_SIZE = (224, 244)
+    # MINIMUM_BBOX_AREA = 1
+
+    all_train_json_load_path = args.train_json_path
+    root_dir = Path(args.root_dir_path)
+    meta_dir = root_dir / args.metadata_dir
+    images_dir = root_dir / args.images_dir
+    save_dir = root_dir / args.save_dir
+    TARGET_IMAGE_SIZE = tuple([int(item) for item in args.target_image_size])
+    MINIMUM_BBOX_AREA = args.minimum_bbox_area
     os.makedirs(save_dir, exist_ok=True)
 
     # This file only contains images and annotations of street photos.
@@ -647,26 +711,27 @@ if __name__ == "__main__":
 
     category_name2category_id = {k: idx for idx, k in enumerate(ORIGINAL_CATEGORIES)}
 
+    log.info("Creating global product to pair-id mapping...")
     global_product_pair_id_map = create_global_to_pair_id_mapping(
         load_json, ORIGINAL_CATEGORIES, meta_dir, category_name2category_id
     )
     ### TODO Susbsitute for a proper function
-    # all_images_infos, all_json_image_ids = create_info_for_all_images(
-    #     train_json_coco, images_dir
+    log.info(f"Creating coco-format images info of jpgs stored at {images_dir}...")
+    all_images_infos, all_json_image_ids = create_info_for_all_images(images_dir)
+    # all_images_infos = np.array(
+    #     load_json("/data/mwieczorek/home/data/street2shop/all_images_info.json")
     # )
-    all_images_infos = np.array(
-        load_json("/data/mwieczorek/home/data/street2shop/all_images_info.json")
-    )
     all_json_image_ids = np.array([item["id"] for item in all_images_infos])
     remapped_datasets = remap_raw_coco_to_pair_ids(
         load_json, ORIGINAL_CATEGORIES, meta_dir, global_product_pair_id_map
     )
 
     for mode in ["train", "test"]:
+        log.info(f"Running script for {mode} data subset...")
         if mode == "test":
             print(mode)
         for category_name in ORIGINAL_CATEGORIES:
-
+            log.info(f"Currently processed category {category_name}.")
             create_coco_json_with_unique_pair_id_per_category(
                 category_name2category_id=category_name2category_id,
                 remapped_datasets=remapped_datasets,
@@ -683,6 +748,9 @@ if __name__ == "__main__":
             if mode == "test":
                 split_test_to_query_gallery(category_name, save_dir)
 
+    log.info(
+        f"Cropping and resizing images to {TARGET_IMAGE_SIZE}. This may take some time..."
+    )
     for category_name in ORIGINAL_CATEGORIES:
         crop_train_images(
             root_dir,
@@ -703,9 +771,12 @@ if __name__ == "__main__":
     CROPPED_IMAGES_TARGET_ROOT_DIR = (
         root_dir / f"images_reid_cropped_{TARGET_IMAGE_SIZE[0]}_{TARGET_IMAGE_SIZE[1]}"
     )
+    log.info(
+        f"Final processing of images. Scattering them to correctly arranged folders. May take some time..."
+    )
     for name in SET_NAMES:
-        print(f"Processing set: {name}")
-        data_set = load_json(f"{name}_coco_reid.json")
+        log.info(f"Processing set: {name}")
+        data_set = load_json(save_dir / f"{name}_coco_reid.json")
         IMAGES_TARGET_DIR = CROPPED_IMAGES_TARGET_ROOT_DIR / f"{name}"
         os.makedirs(str(IMAGES_TARGET_DIR), exist_ok=True)
 
