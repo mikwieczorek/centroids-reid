@@ -70,21 +70,6 @@ if __name__ == "__main__":
     ) as executor:
         executor.map(transform_image, images_source_list)
 
-        # for filename in tqdm(images_list):
-
-        # def transform_image(source, target_dir):
-        #     try:
-        #         im = Image.open(source)
-        #         rgb_im = im.convert("RGB")
-        #         new_name = target_dir / Path(source).with_suffix(".jpg").name
-        #         rgb_im.save(new_name)
-        #         global success
-        #         success += 1
-        #     except Exception as e:
-        #         log.error(e)
-        #         global failed
-        #         failed += 1
-
     log.info("Processing finished.")
     log.info(f"Sucessful images: {success}")
     log.info(f"Failed images: {failed}")
