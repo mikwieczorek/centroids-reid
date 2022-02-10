@@ -47,8 +47,8 @@ def create_global_to_pair_id_mapping(
     unique_pair_id = 1
     for category_name in ORIGINAL_CATEGORIES:
         category_id = category_name2category_id[category_name]
-        style_idx = category_id
-        print(category_name, category_id, style_idx)
+        # style_idx = category_id
+        # print(category_name, category_id, style_idx)
 
         s2s_products2pair_ids = {}
 
@@ -112,7 +112,7 @@ def create_annotations(
     category_id,
     bbox="",
     pair_id="",
-    # style="",
+    style="",
     segmentation="",
     source="",
     area=0,
@@ -127,7 +127,7 @@ def create_annotations(
         "bbox": bbox,
         "iscrowd": int(iscrowd),
         "pair_id": int(pair_id),
-        # "style": style,
+        "style": style,
         "source": source,
     }
 
@@ -266,7 +266,7 @@ def create_coco_json_with_unique_pair_id_per_category(
                 category_id,
                 bbox=bbox,
                 pair_id=pair_id,
-                # style=style_id,
+                style=style_id,
                 segmentation="",
                 source=source,
                 area=area,
@@ -322,7 +322,7 @@ def create_coco_json_with_unique_pair_id_per_category(
                 category_id,
                 bbox=bbox,
                 pair_id=pair_id,
-                # style=style_id,
+                style=style_id,
                 segmentation="",
                 source=source,
                 area=area,
@@ -377,8 +377,8 @@ def split_test_to_query_gallery(category_name: str, load_dir: str):
             item["id"]
             for item in test["annotations"]
             if item["source"] == "user"
-            # and item["style"]
-            # >= 0  ### TODO Style is deep fasion 2 attribute may be deleted
+            and item["style"]
+            >= 0  ### TODO Style is deep fasion 2 attribute may be deleted
         ]
     )
     users_annotations = list(
@@ -461,113 +461,125 @@ def crop_train_images(
     root_dir: str,
     images_dir: str,
     save_dir,
-    category_name,
     TARGET_IMAGE_SIZE,
     MINIMUM_BBOX_AREA,
 ):
-    pair_id_temp_dict = {}  # To store (old_pairid, style) to map to new pair_ids
-    next_image_id = 1
-    next_anno_id = 1
-    next_pair_id = 0
+    """
+    When we crop the train images we need to assign them new pair-ids as there may be more
+    than one produt in the image.
+    """
+    for category_name in ORIGINAL_CATEGORIES:
+        pair_id_temp_dict = {}  # To store (old_pairid, style) to map to new pair_ids
+        next_image_id = 1
+        next_anno_id = 1
+        next_pair_id = 0
 
-    TARGET_IMAGES_DIR = (
-        root_dir
-        / f"images_cropped_{TARGET_IMAGE_SIZE[0]}_{TARGET_IMAGE_SIZE[1]}/{category_name}/"
-    )
-    TARGET_TRAIN_IMAGES_DIR = TARGET_IMAGES_DIR / "train"
-    GALLERY_IMAGES_DIR = TARGET_IMAGES_DIR / "gallery"
-    QUERY_IMAGES_DIR = TARGET_IMAGES_DIR / "query"
-    os.makedirs(GALLERY_IMAGES_DIR, exist_ok=True)
-    os.makedirs(QUERY_IMAGES_DIR, exist_ok=True)
-    os.makedirs(TARGET_TRAIN_IMAGES_DIR, exist_ok=True)
+        TARGET_IMAGES_DIR = (
+            root_dir
+            / f"images_cropped_{TARGET_IMAGE_SIZE[0]}_{TARGET_IMAGE_SIZE[1]}/{category_name}/"
+        )
+        TARGET_TRAIN_IMAGES_DIR = TARGET_IMAGES_DIR / "train"
+        GALLERY_IMAGES_DIR = TARGET_IMAGES_DIR / "gallery"
+        QUERY_IMAGES_DIR = TARGET_IMAGES_DIR / "query"
+        os.makedirs(GALLERY_IMAGES_DIR, exist_ok=True)
+        os.makedirs(QUERY_IMAGES_DIR, exist_ok=True)
+        os.makedirs(TARGET_TRAIN_IMAGES_DIR, exist_ok=True)
 
-    train = load_json(save_dir / f"train_{category_name}.json")
-    query = load_json(save_dir / f"query_{category_name}.json")
-    gallery = load_json(save_dir / f"gallery_{category_name}.json")
+        train = load_json(save_dir / f"train_{category_name}.json")
+        query = load_json(save_dir / f"query_{category_name}.json")
+        gallery = load_json(save_dir / f"gallery_{category_name}.json")
 
-    datasets_for_recalculating = [train, query, gallery]
-    save_paths_names = [TARGET_TRAIN_IMAGES_DIR, QUERY_IMAGES_DIR, GALLERY_IMAGES_DIR]
+        datasets_for_recalculating = [train, query, gallery]
+        save_paths_names = [
+            TARGET_TRAIN_IMAGES_DIR,
+            QUERY_IMAGES_DIR,
+            GALLERY_IMAGES_DIR,
+        ]
 
-    for name, IMAGE_SAVE_DIR, dataset in zip(
-        SET_NAMES, save_paths_names, datasets_for_recalculating
-    ):
-        images_info = []
-        annotations_list = []
+        for name, IMAGE_SAVE_DIR, dataset in zip(
+            SET_NAMES, save_paths_names, datasets_for_recalculating
+        ):
+            images_info = []
+            annotations_list = []
 
-        for _, image_info in enumerate(dataset["images"]):
-            im_id = image_info["id"]
+            for _, image_info in enumerate(dataset["images"]):
+                im_id = image_info["id"]
 
-            im_filename = image_info["file_name"]
-            annos_per_img = [
-                anno for anno in dataset["annotations"] if anno["image_id"] == im_id
-            ]
+                im_filename = image_info["file_name"]
+                annos_per_img = [
+                    anno for anno in dataset["annotations"] if anno["image_id"] == im_id
+                ]
 
-            for img_idx, anno in enumerate(annos_per_img):
-                # anno_style = anno["style"]
-                anno_pair_id = anno["pair_id"]
-                anno_cat_id = anno["category_id"]
-                anno_bbox = anno["bbox"]
-                anno_area = anno["area"]
-                anno_source = anno["source"]
+                for img_idx, anno in enumerate(annos_per_img):
+                    anno_style = anno["style"]
+                    anno_pair_id = anno["pair_id"]
+                    anno_cat_id = anno["category_id"]
+                    anno_bbox = anno["bbox"]
+                    anno_area = anno["area"]
+                    anno_source = anno["source"]
 
-                old_filename, ext = os.path.splitext(im_filename)
-                new_filename = old_filename + f"_{anno_style}_{img_idx}" + ext
+                    old_filename, ext = os.path.splitext(im_filename)
+                    new_filename = old_filename + f"_{anno_style}_{img_idx}" + ext
 
-                if os.path.isfile(images_dir / im_filename):  #### TODO REMOVE THIS LINE
-                    if not os.path.isfile(IMAGE_SAVE_DIR / new_filename):
-                        image_open = Image.open(images_dir / im_filename)
-                        if anno_bbox != "":
-                            anno_bbox = np.asarray(anno["bbox"]).astype(np.int32)
-                            if (
-                                anno_bbox[3] != 0
-                                and anno_bbox[2] != 0
-                                and anno_area >= MINIMUM_BBOX_AREA
-                            ):  # Remove all annotations that have width/height==0, or small area
-                                cropped = crop_single_bbox(
-                                    image_open, anno_bbox, TARGET_IMAGE_SIZE
-                                )
+                    if os.path.isfile(
+                        images_dir / im_filename
+                    ):  #### TODO REMOVE THIS LINE
+                        if not os.path.isfile(IMAGE_SAVE_DIR / new_filename):
+                            image_open = Image.open(images_dir / im_filename)
+                            if anno_bbox != "":
+                                anno_bbox = np.asarray(anno["bbox"]).astype(np.int32)
+                                if (
+                                    anno_bbox[3] != 0
+                                    and anno_bbox[2] != 0
+                                    and anno_area >= MINIMUM_BBOX_AREA
+                                ):  # Remove all annotations that have width/height==0, or small area
+                                    cropped = crop_single_bbox(
+                                        image_open, anno_bbox, TARGET_IMAGE_SIZE
+                                    )
+                                else:
+                                    continue
                             else:
-                                continue
-                        else:
-                            cropped = _resize_thumbnail(image_open, TARGET_IMAGE_SIZE)
-                        cropped.save(IMAGE_SAVE_DIR / new_filename)
+                                cropped = _resize_thumbnail(
+                                    image_open, TARGET_IMAGE_SIZE
+                                )
+                            cropped.save(IMAGE_SAVE_DIR / new_filename)
 
-                if (anno_pair_id, anno_style) not in pair_id_temp_dict:
-                    pair_id_temp_dict[(anno_pair_id, anno_style)] = next_pair_id
-                    new_pair_id = next_pair_id
-                    next_pair_id += 1
-                else:
-                    new_pair_id = pair_id_temp_dict[(anno_pair_id, anno_style)]
+                    if (anno_pair_id, anno_style) not in pair_id_temp_dict:
+                        pair_id_temp_dict[(anno_pair_id, anno_style)] = next_pair_id
+                        new_pair_id = next_pair_id
+                        next_pair_id += 1
+                    else:
+                        new_pair_id = pair_id_temp_dict[(anno_pair_id, anno_style)]
 
-                single_crop_info = create_image_info(
-                    image_id=next_image_id,
-                    width=TARGET_IMAGE_SIZE[0],
-                    height=TARGET_IMAGE_SIZE[1],
-                    file_name=new_filename,
-                )
-                single_crop_anno = create_annotations(
-                    anno_id=next_anno_id,
-                    image_id=next_image_id,
-                    category_id=anno_cat_id,
-                    bbox="",
-                    pair_id=new_pair_id,
-                    # style=anno_style,
-                    segmentation="",
-                    area=anno_area,
-                    iscrowd=0,
-                    source=anno_source,
-                )
-                next_image_id += 1
-                next_anno_id += 1
+                    single_crop_info = create_image_info(
+                        image_id=next_image_id,
+                        width=TARGET_IMAGE_SIZE[0],
+                        height=TARGET_IMAGE_SIZE[1],
+                        file_name=new_filename,
+                    )
+                    single_crop_anno = create_annotations(
+                        anno_id=next_anno_id,
+                        image_id=next_image_id,
+                        category_id=anno_cat_id,
+                        bbox="",
+                        pair_id=new_pair_id,
+                        style=anno_style,
+                        segmentation="",
+                        area=anno_area,
+                        iscrowd=0,
+                        source=anno_source,
+                    )
+                    next_image_id += 1
+                    next_anno_id += 1
 
-                images_info.append(single_crop_info)
-                annotations_list.append(single_crop_anno)
+                    images_info.append(single_crop_info)
+                    annotations_list.append(single_crop_anno)
 
-        dataset["images"] = images_info
-        dataset["annotations"] = annotations_list
+            dataset["images"] = images_info
+            dataset["annotations"] = annotations_list
 
-        with open(save_dir / f"{name}_{category_name}_cropped.json", "w") as f:
-            json.dump(dataset, f)
+            with open(save_dir / f"{name}_{category_name}_cropped.json", "w") as f:
+                json.dump(dataset, f)
 
 
 def merge_single_set_jsons(
@@ -751,15 +763,14 @@ Script crops the bounding boxes and resizes them to the target size. Width x Hei
     log.info(
         f"Cropping and resizing images to {TARGET_IMAGE_SIZE}. This may take some time..."
     )
-    for category_name in ORIGINAL_CATEGORIES:
-        crop_train_images(
-            root_dir,
-            images_dir,
-            save_dir,
-            category_name,
-            TARGET_IMAGE_SIZE,
-            MINIMUM_BBOX_AREA,
-        )
+
+    crop_train_images(
+        root_dir,
+        images_dir,
+        save_dir,
+        TARGET_IMAGE_SIZE,
+        MINIMUM_BBOX_AREA,
+    )
 
     ### Scatter images to folder for reid training
     for set_name in SET_NAMES:
