@@ -468,12 +468,12 @@ def crop_train_images(
     When we crop the train images we need to assign them new pair-ids as there may be more
     than one produt in the image.
     """
-    for category_name in ORIGINAL_CATEGORIES:
-        pair_id_temp_dict = {}  # To store (old_pairid, style) to map to new pair_ids
-        next_image_id = 1
-        next_anno_id = 1
-        next_pair_id = 0
+    pair_id_temp_dict = {}  # To store (old_pairid, style) to map to new pair_ids
+    next_image_id = 1
+    next_anno_id = 1
+    next_pair_id = 0
 
+    for category_name in ORIGINAL_CATEGORIES:
         TARGET_IMAGES_DIR = (
             root_dir
             / f"images_cropped_{TARGET_IMAGE_SIZE[0]}_{TARGET_IMAGE_SIZE[1]}/{category_name}/"
@@ -481,9 +481,9 @@ def crop_train_images(
         TARGET_TRAIN_IMAGES_DIR = TARGET_IMAGES_DIR / "train"
         GALLERY_IMAGES_DIR = TARGET_IMAGES_DIR / "gallery"
         QUERY_IMAGES_DIR = TARGET_IMAGES_DIR / "query"
-        os.makedirs(GALLERY_IMAGES_DIR, exist_ok=True)
-        os.makedirs(QUERY_IMAGES_DIR, exist_ok=True)
-        os.makedirs(TARGET_TRAIN_IMAGES_DIR, exist_ok=True)
+        GALLERY_IMAGES_DIR.mkdir(exist_ok=True, parents=True)
+        QUERY_IMAGES_DIR.mkdir(exist_ok=True, parents=True)
+        TARGET_TRAIN_IMAGES_DIR.mkdir(exist_ok=True, parents=True)
 
         train = load_json(save_dir / f"train_{category_name}.json")
         query = load_json(save_dir / f"query_{category_name}.json")
@@ -524,7 +524,9 @@ def crop_train_images(
                     if os.path.isfile(
                         images_dir / im_filename
                     ):  #### TODO REMOVE THIS LINE
-                        if not os.path.isfile(IMAGE_SAVE_DIR / new_filename):
+                        if not os.path.isfile(
+                            IMAGE_SAVE_DIR / new_filename
+                        ):  ## TODO This line remove
                             image_open = Image.open(images_dir / im_filename)
                             if anno_bbox != "":
                                 anno_bbox = np.asarray(anno["bbox"]).astype(np.int32)
@@ -789,7 +791,8 @@ Script crops the bounding boxes and resizes them to the target size. Width x Hei
         log.info(f"Processing set: {name}")
         data_set = load_json(save_dir / f"{name}_coco_reid.json")
         IMAGES_TARGET_DIR = CROPPED_IMAGES_TARGET_ROOT_DIR / f"{name}"
-        os.makedirs(str(IMAGES_TARGET_DIR), exist_ok=True)
+        IMAGES_TARGET_DIR.mkdir(exist_ok=True, parents=True)
+        log.info(f"Saving images from {name} subset to {IMAGES_TARGET_DIR}")
 
         for image_info in data_set["images"]:
             file_name = image_info["file_name"]
