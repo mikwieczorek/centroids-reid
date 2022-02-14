@@ -447,6 +447,7 @@ Script crops the bounding boxes and resizes them to the target size. Width x Hei
     split_dict = get_data_splits(split_file)
 
     # Split images to subset/id folder
+    log.info(f"Scattering images temporarily to seperate folders...")
     for subset_name, subset in split_dict.items():
         scatter_images_to_folders(
             ROOT_DIR, IMAGES_ORG_PATH, IMAGES_ROOT_DIR_SPLIT, subset_name, subset
@@ -462,6 +463,9 @@ Script crops the bounding boxes and resizes them to the target size. Width x Hei
     bbox_dict = prepare_bboxes(SOURCES_DICT, bbox_file)
 
     # Copy / rename / save
+    log.info(
+        f"Cropping and resizing images to {TARGET_IMAGE_SIZE}. This may take some time..."
+    )
     all_image_infos, all_annotations = crop_all_images(
         split_dict=split_dict,
         global_product_pair_id_map=global_product_pair_id_map,
@@ -471,12 +475,16 @@ Script crops the bounding boxes and resizes them to the target size. Width x Hei
         crop_images_save_root=CROP_IMAGES_SAVE_ROOT,
         target_image_size=TARGET_IMAGE_SIZE,
     )
-    
+
     ### Create splits
+    log.info("Creating query and gallery splits...")
     query_images, gallery_images = create_query_gallery_split(
         all_image_infos, all_annotations
     )
 
+    log.info(
+        f"Final processing of images. Scattering them to correctly arranged folders. May take some time..."
+    )
     for mode, img_info_set in zip(("query", "gallery"), (query_images, gallery_images)):
         (CROP_IMAGES_SAVE_ROOT / mode).mkdir(exist_ok=True, parents=True)
         for img_info in img_info_set:
@@ -488,3 +496,6 @@ Script crops the bounding boxes and resizes them to the target size. Width x Hei
                         CROP_IMAGES_SAVE_ROOT, mode, img_filename
                     )
                     shutil.copy(source, target_path)
+
+    log.info(f"Removing temporary folder with images: {IMAGES_ROOT_DIR_SPLIT}")
+    shutil.rmtree(path=IMAGES_ROOT_DIR_SPLIT)

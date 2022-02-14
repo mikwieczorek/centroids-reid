@@ -726,12 +726,9 @@ Script crops the bounding boxes and resizes them to the target size. Width x Hei
     global_product_pair_id_map = create_global_to_pair_id_mapping(
         load_json, ORIGINAL_CATEGORIES, meta_dir, category_name2category_id
     )
-    ### TODO Susbsitute for a proper function
+
     log.info(f"Creating coco-format images info of jpgs stored at {images_dir}...")
     all_images_infos, all_json_image_ids = create_info_for_all_images(images_dir)
-    # all_images_infos = np.array(
-    #     load_json("/data/mwieczorek/home/data/street2shop/all_images_info.json")
-    # )
     all_json_image_ids = np.array([item["id"] for item in all_images_infos])
     remapped_datasets = remap_raw_coco_to_pair_ids(
         load_json, ORIGINAL_CATEGORIES, meta_dir, global_product_pair_id_map
@@ -768,7 +765,6 @@ Script crops the bounding boxes and resizes them to the target size. Width x Hei
     log.info(
         f"Cropping and resizing images to {TARGET_IMAGE_SIZE}. This may take some time..."
     )
-
     jsons_reid_per_category_cropped = crop_train_images(
         root_dir,
         images_dir,
@@ -776,7 +772,6 @@ Script crops the bounding boxes and resizes them to the target size. Width x Hei
         MINIMUM_BBOX_AREA,
         jsons_reid_per_category,
     )
-
     del jsons_reid_per_category
 
     ### Scatter images to folder for reid training
@@ -814,3 +809,6 @@ Script crops the bounding boxes and resizes them to the target size. Width x Hei
                     target_path = IMAGES_TARGET_DIR / file_name
                     if not os.path.isfile(target_path):
                         shutil.move(source_path, target_path)
+
+    log.info(f"Removing temporary folder with images: {CROPPED_IMAGES_SOURCE_ROOT_DIR}")
+    shutil.rmtree(path=CROPPED_IMAGES_SOURCE_ROOT_DIR)
