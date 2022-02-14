@@ -1,4 +1,5 @@
 import argparse
+import concurrent.futures
 import copy
 import glob
 import json
@@ -31,7 +32,7 @@ ORIGINAL_CATEGORIES = [
     "skirts",
     "tops",
 ]
-
+ORIGINAL_SUBSETS = ["train", "test"]
 SET_NAMES = ["train", "query", "gallery"]
 
 
@@ -216,8 +217,8 @@ def create_coco_json_with_unique_pair_id_per_category(
     all_json_image_ids,
     mode,
     save_dir,
+    jsons_reid_per_category,
 ):
-    assert mode in ["train", "test"]
     category_id = category_name2category_id[category_name]
     style_id = category_id
 
@@ -280,7 +281,7 @@ def create_coco_json_with_unique_pair_id_per_category(
     if mode == "train":
         all_products = np.unique(all_products)
     elif mode == "test":
-        train_json = load_json(save_dir / f"train_{category_name}.json")
+        train_json = jsons_reid_per_category[f"train_{category_name}"]
         all_products = np.array([item["pair_id"] for item in train_json["annotations"]])
 
     print("Stats after creting annotations")
@@ -336,8 +337,7 @@ def create_coco_json_with_unique_pair_id_per_category(
     print("Stats after creting annotations")
     get_train_test_file_stats(all_annos)
 
-    with open(save_dir / f"{mode}_{category_name}.json", "w") as f:
-        json.dump(output_json, f)
+    return {f"{mode}_{category_name}": output_json}
 
 
 def create_info_for_all_images(images_dir):
@@ -367,8 +367,10 @@ def create_info_for_all_images(images_dir):
     return all_images_infos, all_json_image_ids
 
 
-def split_test_to_query_gallery(category_name: str, load_dir: str):
-    test = load_json(load_dir / f"test_{category_name}.json")
+def split_test_to_query_gallery(
+    category_name: str, load_dir: str, jsons_reid_per_category: dict
+):
+    test = jsons_reid_per_category[f"test_{category_name}"]
 
     all_annotations = np.array(test["annotations"])
     all_annotations_ids = np.array([item["id"] for item in test["annotations"]])
@@ -423,10 +425,7 @@ def split_test_to_query_gallery(category_name: str, load_dir: str):
     print(f"Len gallery['annotations']: {len(gallery['annotations'])}")
     print(f"Number unique pair_ids: {len(np.unique(gallery_annotations_pair_ids))}")
 
-    with open(load_dir / f"./query_{category_name}.json", "w") as f:
-        json.dump(query, f)
-    with open(load_dir / f"./gallery_{category_name}.json", "w") as f:
-        json.dump(gallery, f)
+    return {f"query_{category_name}": query, f"gallery_{category_name}": gallery}
 
 
 def _resize_thumbnail(im: Image, target_image_size: tuple):
@@ -460,14 +459,18 @@ def crop_single_bbox(image, bbox, target_image_size: tuple):
 def crop_train_images(
     root_dir: str,
     images_dir: str,
-    save_dir,
-    TARGET_IMAGE_SIZE,
-    MINIMUM_BBOX_AREA,
-):
+    TARGET_IMAGE_SIZE: tuple,
+    MINIMUM_BBOX_AREA: int,
+    jsons_reid_per_category: dict,
+) -> dict:
     """
     When we crop the train images we need to assign them new pair-ids as there may be more
     than one produt in the image.
     """
+
+    image_data_to_crop = []
+    output = {}
+
     pair_id_temp_dict = {}  # To store (old_pairid, style) to map to new pair_ids
     next_image_id = 1
     next_anno_id = 1
@@ -476,7 +479,7 @@ def crop_train_images(
     for category_name in ORIGINAL_CATEGORIES:
         TARGET_IMAGES_DIR = (
             root_dir
-            / f"images_cropped_{TARGET_IMAGE_SIZE[0]}_{TARGET_IMAGE_SIZE[1]}/{category_name}/"
+            / f"images_cropped_{TARGET_IMAGE_SIZE[0]}_{TARGET_IMAGE_SIZE[1]}_new/{category_name}/"  ## TODO Rename this
         )
         TARGET_TRAIN_IMAGES_DIR = TARGET_IMAGES_DIR / "train"
         GALLERY_IMAGES_DIR = TARGET_IMAGES_DIR / "gallery"
@@ -485,9 +488,9 @@ def crop_train_images(
         QUERY_IMAGES_DIR.mkdir(exist_ok=True, parents=True)
         TARGET_TRAIN_IMAGES_DIR.mkdir(exist_ok=True, parents=True)
 
-        train = load_json(save_dir / f"train_{category_name}.json")
-        query = load_json(save_dir / f"query_{category_name}.json")
-        gallery = load_json(save_dir / f"gallery_{category_name}.json")
+        train = jsons_reid_per_category[f"train_{category_name}"]
+        query = jsons_reid_per_category[f"query_{category_name}"]
+        gallery = jsons_reid_per_category[f"gallery_{category_name}"]
 
         datasets_for_recalculating = [train, query, gallery]
         save_paths_names = [
@@ -580,12 +583,16 @@ def crop_train_images(
             dataset["images"] = images_info
             dataset["annotations"] = annotations_list
 
-            with open(save_dir / f"{name}_{category_name}_cropped.json", "w") as f:
-                json.dump(dataset, f)
+            output.update({f"{name}_{category_name}_cropped": dataset})
+
+    return output
 
 
 def merge_single_set_jsons(
-    set_name: str, ORIGINAL_CATEGORIES: List[str], json_load_dir: str
+    set_name: str,
+    ORIGINAL_CATEGORIES: List[str],
+    save_dir: str,
+    jsons_reid_per_category_cropped,
 ):
     global_json = {}
     anno_id = 0
@@ -594,9 +601,9 @@ def merge_single_set_jsons(
     all_images_info = []
 
     for category_name in ORIGINAL_CATEGORIES:
-        set_single_category_json = load_json(
-            json_load_dir / f"{set_name}_{category_name}_cropped.json"
-        )
+        set_single_category_json = jsons_reid_per_category_cropped[
+            f"{set_name}_{category_name}_cropped"
+        ]
         set_single_category_json_images_ids = np.array(
             [item["id"] for item in set_single_category_json["images"]]
         )
@@ -640,7 +647,7 @@ def merge_single_set_jsons(
     global_json["images"] = list(all_images_info)
     global_json["annotations"] = list(all_annos)
 
-    with open(json_load_dir / f"{set_name}_coco_reid.json", "w") as f:
+    with open(save_dir / f"{set_name}_coco_reid.json", "w") as f:
         json.dump(global_json, f)
 
 
@@ -701,16 +708,6 @@ Script crops the bounding boxes and resizes them to the target size. Width x Hei
 
     args = parser.parse_args()
 
-    # all_train_json_load_path = (
-    #     "/data/mwieczorek/home/data/street2shop/new_meta_test/all_street_train.json"
-    # )
-    # root_dir = Path("/data/mwieczorek/home/data/street2shop/")
-    # meta_dir = root_dir / "meta"
-    # images_dir = root_dir / "images"
-    # save_dir = root_dir / "new_meta_dir"
-    # TARGET_IMAGE_SIZE = (224, 244)
-    # MINIMUM_BBOX_AREA = 1
-
     all_train_json_load_path = args.train_json_path
     root_dir = Path(args.root_dir_path)
     meta_dir = root_dir / args.metadata_dir
@@ -740,13 +737,14 @@ Script crops the bounding boxes and resizes them to the target size. Width x Hei
         load_json, ORIGINAL_CATEGORIES, meta_dir, global_product_pair_id_map
     )
 
-    for mode in ["train", "test"]:
+    jsons_reid_per_category = {}
+    for mode in ORIGINAL_SUBSETS:
         log.info(f"Running script for {mode} data subset...")
         if mode == "test":
             print(mode)
         for category_name in ORIGINAL_CATEGORIES:
             log.info(f"Currently processed category {category_name}.")
-            create_coco_json_with_unique_pair_id_per_category(
+            tmp_json = create_coco_json_with_unique_pair_id_per_category(
                 category_name2category_id=category_name2category_id,
                 remapped_datasets=remapped_datasets,
                 category_name=category_name,
@@ -757,32 +755,43 @@ Script crops the bounding boxes and resizes them to the target size. Width x Hei
                 all_json_image_ids=all_json_image_ids,
                 mode=mode,
                 save_dir=save_dir,
+                jsons_reid_per_category=jsons_reid_per_category,
             )
+            jsons_reid_per_category.update(tmp_json)
 
             if mode == "test":
-                split_test_to_query_gallery(category_name, save_dir)
+                tmp_json = split_test_to_query_gallery(
+                    category_name, save_dir, jsons_reid_per_category
+                )
+                jsons_reid_per_category.update(tmp_json)
 
     log.info(
         f"Cropping and resizing images to {TARGET_IMAGE_SIZE}. This may take some time..."
     )
 
-    crop_train_images(
+    jsons_reid_per_category_cropped = crop_train_images(
         root_dir,
         images_dir,
-        save_dir,
         TARGET_IMAGE_SIZE,
         MINIMUM_BBOX_AREA,
+        jsons_reid_per_category,
     )
+
+    del jsons_reid_per_category
 
     ### Scatter images to folder for reid training
     for set_name in SET_NAMES:
-        merge_single_set_jsons(set_name, ORIGINAL_CATEGORIES, save_dir)
+        merge_single_set_jsons(
+            set_name, ORIGINAL_CATEGORIES, save_dir, jsons_reid_per_category_cropped
+        )
 
     CROPPED_IMAGES_SOURCE_ROOT_DIR = (
-        root_dir / f"images_cropped_{TARGET_IMAGE_SIZE[0]}_{TARGET_IMAGE_SIZE[1]}"
+        root_dir
+        / f"images_cropped_{TARGET_IMAGE_SIZE[0]}_{TARGET_IMAGE_SIZE[1]}_new"  ## TODO Rename this
     )
     CROPPED_IMAGES_TARGET_ROOT_DIR = (
-        root_dir / f"images_reid_cropped_{TARGET_IMAGE_SIZE[0]}_{TARGET_IMAGE_SIZE[1]}"
+        root_dir
+        / f"images_reid_cropped_{TARGET_IMAGE_SIZE[0]}_{TARGET_IMAGE_SIZE[1]}_new"
     )
     log.info(
         f"Final processing of images. Scattering them to correctly arranged folders. May take some time..."
@@ -792,7 +801,7 @@ Script crops the bounding boxes and resizes them to the target size. Width x Hei
         data_set = load_json(save_dir / f"{name}_coco_reid.json")
         IMAGES_TARGET_DIR = CROPPED_IMAGES_TARGET_ROOT_DIR / f"{name}"
         IMAGES_TARGET_DIR.mkdir(exist_ok=True, parents=True)
-        log.info(f"Saving images from {name} subset to {IMAGES_TARGET_DIR}")
+        log.info(f"Moving images from {name} subset to {IMAGES_TARGET_DIR}")
 
         for image_info in data_set["images"]:
             file_name = image_info["file_name"]
@@ -804,4 +813,4 @@ Script crops the bounding boxes and resizes them to the target size. Width x Hei
                 if os.path.isfile(source_path):
                     target_path = IMAGES_TARGET_DIR / file_name
                     if not os.path.isfile(target_path):
-                        shutil.copy(source_path, target_path)
+                        shutil.move(source_path, target_path)
