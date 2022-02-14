@@ -1,13 +1,9 @@
-import copy
-import glob
 import json
 import logging
 import os
-import os.path as osp
 import shutil
 from collections import defaultdict
-
-import numpy as npa
+import argparse
 import numpy as np
 from PIL import Image, ImageFile
 from tqdm import tqdm
@@ -17,6 +13,8 @@ ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO"))
 log = logging.getLogger(__name__)
+
+SOURCES_DICT = {"1": "shop", "2": "user"}
 
 
 def load_json(json_abs_path):
@@ -120,18 +118,7 @@ def resize_low_res_bbox_to_high_res(low_res_bbox, low_res_w, low_res_h, w, h):
     return high_res_bbox
 
 
-if __name__ == "__main__":
-    ROOT_DIR = Path("/data/mwieczorek/data/deep_fashion/consumer_to_shop/")
-    IMAGES_ORG_PATH = ROOT_DIR / "img_highres"
-    IMAGES_ROOT_DIR_SPLIT = ROOT_DIR / "images_high_res_tmp"
-    IMAGES_ROOT_DIR_SPLIT.mkdir(exist_ok=True)
-    LOW_RES_IMAGES_ROOT = ROOT_DIR / "img_low_res"
-
-    ## Get Train/val/test split
-    split_load_path = ROOT_DIR / "Eval/list_eval_partition.txt"
-    with open(split_load_path, "r") as f:
-        split_file = f.readlines()
-
+def get_data_splits(split_file):
     split_dict = defaultdict(list)
     for line in split_file[2:]:
         # Split long string
@@ -142,52 +129,40 @@ if __name__ == "__main__":
         source_dir = os.path.split(splitted[0])[0]
         tmp_dict = {"pair_id": pair_id, "source_dir": source_dir}
         split_dict[subset_type].append(tmp_dict)
+    return split_dict
 
-    # Rename erronous directory
-    log.warn(
-        f"{ROOT_DIR / 'img_highres/CLOTHING/Summer_Suit/'} needs to be renamed {ROOT_DIR / 'img_highres/CLOTHING/Summer_Wear/'}. Renaming automatically."
-    )
-    if (ROOT_DIR / "img_highres/CLOTHING/Summer_Suit").is_dir():
-        shutil.move(
-            str(ROOT_DIR / "img_highres/CLOTHING/Summer_Suit"),
-            str(ROOT_DIR / "img_highres/CLOTHING/Summer_Wear"),
-        )
 
-    # Split images to subset/id folder
-    for subset_name, subset in split_dict.items():
-        all_sources = np.unique([item["source_dir"] for item in subset])
-        for source in all_sources:
-            source_path = ROOT_DIR / source
-            files_in_dir = os.listdir(source_path)
-            dir_name = source_path.stem
-            dir_path = IMAGES_ROOT_DIR_SPLIT / subset_name / dir_name
-            dir_path.mkdir(parents=True, exist_ok=True)
-            # to remove "img/" from example like 'img/CLOTHING/Blouse/id_00005025' -> '/CLOTHING/Blouse/id_00005025' as we want high res images
-            source_root = source.lstrip("img/")
-            for file in files_in_dir:
-                shutil.copy(IMAGES_ORG_PATH / source_root / file, dir_path / file)
+def scatter_images_to_folders(
+    root_dir, images_org_path, images_root_dir_split, subset_name, subset
+):
+    all_sources = np.unique([item["source_dir"] for item in subset])
+    for source in all_sources:
+        source_path = root_dir / source
+        files_in_dir = os.listdir(source_path)
+        dir_name = source_path.stem
+        dir_path = images_root_dir_split / subset_name / dir_name
+        dir_path.mkdir(parents=True, exist_ok=True)
+        # to remove "img/" from example like 'img/CLOTHING/Blouse/id_00005025' -> '/CLOTHING/Blouse/id_00005025' as we want high res images
+        source_root = source.lstrip("img/")
+        for file in files_in_dir:
+            shutil.copy(images_org_path / source_root / file, dir_path / file)
 
-    # Create global mapping to pair-ids
+
+def create_gloabl_to_pair_id_mapping(split_dict):
     global_product_pair_id_map = {}
     unique_pair_id = 0
-
-    for subset_name, subset in split_dict.items():
+    for _, subset in split_dict.items():
         all_sources = np.unique([item["source_dir"] for item in subset])
         for source in all_sources:
             dir_name = source.split("/")[-1]
             if dir_name not in global_product_pair_id_map:
                 global_product_pair_id_map[dir_name] = unique_pair_id
                 unique_pair_id += 1
+    return global_product_pair_id_map
 
-    # Prepare bboxes
-    bbox_load_path = ROOT_DIR / "Anno/list_bbox_consumer2shop.txt"
-    with open(bbox_load_path, "r") as f:
-        bbox_file = f.readlines()
 
-    source_dict = {"1": "shop", "2": "user"}
-
+def prepare_bboxes(SOURCES_DICT, bbox_file):
     bbox_dict = defaultdict(dict)
-    # bbox_dict = {}
     for line in bbox_file[2:]:
         # Split long string
         bbox_txt = line.split()
@@ -198,39 +173,35 @@ if __name__ == "__main__":
         bbox_tmp = bbox_txt[-4:]
         bbox_tmp = [int(item) for item in bbox_tmp]
         style = bbox_txt[1]
-        source = source_dict[bbox_txt[2]]
+        source = SOURCES_DICT[bbox_txt[2]]
         tmp_dict = {photo_name: {"bbox": bbox_tmp, "style": style, "source": source}}
-        #     id_dic = bbox_dict.get(id_name, {})
-
         bbox_dict[id_name].update(tmp_dict)
+    return bbox_dict
 
-    # Copy / rename / save
-    TARGET_IMAGE_SIZE = (320, 320)
-    CROP_IMAGES_SAVE_ROOT = (
-        ROOT_DIR / f"./{TARGET_IMAGE_SIZE[0]}_{TARGET_IMAGE_SIZE[1]}_cropped_images_new"
-    )
-    # CROP_IMAGES_SAVE_ROOT = f'./{TARGET_IMAGE_SIZE[0]}_{TARGET_IMAGE_SIZE[1]}_full_images'
-    CROP_IMAGES_SAVE_ROOT.mkdir(exist_ok=True)
 
+def crop_all_images(
+    split_dict,
+    global_product_pair_id_map,
+    root_dir,
+    image_root_dir_split,
+    low_res_image_root,
+    crop_images_save_root,
+    target_image_size,
+):
     next_anno_id = 0
     next_img_id = 0
     all_annotations = {}
     all_image_infos = {}  # To easily retrieve images neede for the set
-    all_products = []  # To easily retrieve products/pair_ids neede for the set
-    pair_id_temp_dict = {}  # To store (old_pairid, style) to map to new pair_ids
-
     # Crop from high-res images
     for subset_name in list(split_dict.keys()):
-        #     if subset_name != 'test':
-        #         continue
-        CROP_IMAGES_SAVE_PATH = os.path.join(CROP_IMAGES_SAVE_ROOT, subset_name)
-        os.makedirs(CROP_IMAGES_SAVE_PATH, exist_ok=True)
+        CROP_IMAGES_SAVE_PATH = crop_images_save_root / subset_name
+        CROP_IMAGES_SAVE_PATH.mkdir(exist_ok=True, parents=True)
 
         json_obj = {}
-
         images_info = []
         annos = []
-        root_dir = os.path.join(IMAGES_ROOT_DIR_SPLIT, subset_name)
+        root_dir = image_root_dir_split / subset_name
+
         for dir_name in os.listdir(root_dir):
             pair_id = global_product_pair_id_map[
                 dir_name
@@ -247,7 +218,7 @@ if __name__ == "__main__":
 
                 low_res_source_filepath = os.path.join(
                     str(dir_path).replace(
-                        str(IMAGES_ROOT_DIR_SPLIT), str(LOW_RES_IMAGES_ROOT)
+                        str(image_root_dir_split), str(low_res_image_root)
                     ),
                     file,
                 )
@@ -274,10 +245,9 @@ if __name__ == "__main__":
                 ]  # 1,2 or 3. Upper, lower of full-body clothes
                 anno_source = img_anno_dict["source"]
                 anno_bbox = img_anno_dict["bbox"]
-                anno_pair_id = global_product_pair_id_map[dir_name]
                 anno_id = next_anno_id
 
-                if not os.path.isfile(os.path.join(CROP_IMAGES_SAVE_PATH, im_filename)):
+                if not (CROP_IMAGES_SAVE_PATH / im_filename).is_file():
                     if anno_bbox != "":
                         anno_bbox = np.asarray(anno_bbox).astype(np.int32)
                         high_res_bbox = resize_low_res_bbox_to_high_res(
@@ -287,12 +257,12 @@ if __name__ == "__main__":
                             high_res_bbox[3] != 0 and high_res_bbox[2] != 0
                         ):  # Remove all annotations that have width/height==0
                             cropped = crop_single_bbox(
-                                image_open, high_res_bbox, TARGET_IMAGE_SIZE
+                                image_open, high_res_bbox, target_image_size
                             )
                         else:
                             continue
                     else:
-                        cropped = _resize_thumbnail(image_open, TARGET_IMAGE_SIZE)
+                        cropped = _resize_thumbnail(image_open, target_image_size)
 
                 single_crop_anno = create_annotations(
                     anno_id=anno_id,
@@ -309,9 +279,9 @@ if __name__ == "__main__":
                 annos.append(single_crop_anno)
                 next_anno_id += 1
 
-                if os.path.isfile(os.path.join(CROP_IMAGES_SAVE_PATH, im_filename)):
+                if (CROP_IMAGES_SAVE_PATH / im_filename).is_file():
                     continue
-                cropped.save(os.path.join(CROP_IMAGES_SAVE_PATH, im_filename))
+                cropped.save(CROP_IMAGES_SAVE_PATH / im_filename)
 
         all_image_infos[subset_name] = images_info
         all_annotations[subset_name] = annos
@@ -320,15 +290,17 @@ if __name__ == "__main__":
         json_obj["annotations"] = annos
 
         with open(
-            ROOT_DIR
-            / f"{subset_name}_reid_cropped_{TARGET_IMAGE_SIZE[0]}_{TARGET_IMAGE_SIZE[1]}_new_github.json",
+            root_dir
+            / f"{subset_name}_reid_cropped_{target_image_size[0]}_{target_image_size[1]}_new_github.json",  # TODO Rename
             "w",
         ) as f:
             json.dump(json_obj, f)
 
-    #     break
+        return all_image_infos, all_annotations
 
-    ### Create splits
+
+def create_query_gallery_split(root_dir, all_image_infos, all_annotations):
+
     # Prepare test
     test_img_info = np.array(all_image_infos["test"])
     test_img_info_ids = np.array([item["id"] for item in test_img_info])
@@ -399,8 +371,8 @@ if __name__ == "__main__":
     json_obj["images"] = list(query_images)
     json_obj["annotations"] = list(query_annotations)
     with open(
-        ROOT_DIR
-        / f"query_reid_cropped_{TARGET_IMAGE_SIZE[0]}_{TARGET_IMAGE_SIZE[1]}_new_github.json",
+        root_dir
+        / f"query_reid_cropped_{TARGET_IMAGE_SIZE[0]}_{TARGET_IMAGE_SIZE[1]}_new_github.json",  ## TODO Rename
         "w",
     ) as f:
         json.dump(json_obj, f)
@@ -411,20 +383,108 @@ if __name__ == "__main__":
     json_obj["images"] = gallery_images
     json_obj["annotations"] = gallery_annotations
     with open(
-        ROOT_DIR
-        / f"gallery_reid_cropped_{TARGET_IMAGE_SIZE[0]}_{TARGET_IMAGE_SIZE[1]}_new_github.json",
+        root_dir
+        / f"gallery_reid_cropped_{TARGET_IMAGE_SIZE[0]}_{TARGET_IMAGE_SIZE[1]}_new_github.json",  # TODO Rename
         "w",
     ) as f:
         json.dump(json_obj, f)
 
+    return query_images, gallery_images
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Script to transform DeepFashion Consumer-to-Shop annotations to ReID-ready COCO format."
+    )
+    parser.add_argument(
+        "--root-dir-path",
+        help="path to root directory of Deep Fashion Consumer-to-Shop data",
+        type=str,
+        required=True,
+    )
+    parser.add_argument(
+        "--target-image-size",
+        help=(
+            "size of images that will be fed into the network.\
+Script crops the bounding boxes and resizes them to the target size. Width x Height"
+        ),
+        required=False,
+        type=int,
+        nargs="+",
+        default=[320, 320],
+    )
+
+    args = parser.parse_args()
+
+    ### PARAMS
+    ROOT_DIR = Path(args.root_dir_path)
+    TARGET_IMAGE_SIZE = tuple([int(item) for item in args.target_image_size])
+    IMAGES_ORG_PATH = ROOT_DIR / "img_highres"
+    LOW_RES_IMAGES_ROOT = ROOT_DIR / "img_low_res"
+    IMAGES_ROOT_DIR_SPLIT = ROOT_DIR / "images_high_res_tmp"
+    IMAGES_ROOT_DIR_SPLIT.mkdir(exist_ok=True)
+    CROP_IMAGES_SAVE_ROOT = (
+        ROOT_DIR
+        / f"./{TARGET_IMAGE_SIZE[0]}_{TARGET_IMAGE_SIZE[1]}_cropped_images_new"  ## TODO Rename this
+    )
+    CROP_IMAGES_SAVE_ROOT.mkdir(exist_ok=True)
+    assert IMAGES_ORG_PATH.is_dir()
+
+    # Rename erronous directory
+    log.warn(
+        f"{ROOT_DIR / 'img_highres/CLOTHING/Summer_Suit/'} needs to be renamed {ROOT_DIR / 'img_highres/CLOTHING/Summer_Wear/'}. Renaming automatically."
+    )
+    if (ROOT_DIR / "img_highres/CLOTHING/Summer_Suit").is_dir():
+        shutil.move(
+            str(ROOT_DIR / "img_highres/CLOTHING/Summer_Suit"),
+            str(ROOT_DIR / "img_highres/CLOTHING/Summer_Wear"),
+        )
+
+    ## Get Train/val/test split
+    split_load_path = ROOT_DIR / "Eval/list_eval_partition.txt"
+    with open(split_load_path, "r") as f:
+        split_file = f.readlines()
+    split_dict = get_data_splits(split_file)
+
+    # Split images to subset/id folder
+    for subset_name, subset in split_dict.items():
+        scatter_images_to_folders(
+            ROOT_DIR, IMAGES_ORG_PATH, IMAGES_ROOT_DIR_SPLIT, subset_name, subset
+        )
+
+    # Create global mapping to pair-ids
+    global_product_pair_id_map = create_gloabl_to_pair_id_mapping(split_dict)
+
+    # Prepare bboxes
+    bbox_load_path = ROOT_DIR / "Anno/list_bbox_consumer2shop.txt"
+    with open(bbox_load_path, "r") as f:
+        bbox_file = f.readlines()
+    bbox_dict = prepare_bboxes(SOURCES_DICT, bbox_file)
+
+    # Copy / rename / save
+    all_image_infos, all_annotations = crop_all_images(
+        split_dict=split_dict,
+        global_product_pair_id_map=global_product_pair_id_map,
+        root_dir=ROOT_DIR,
+        image_root_dir_split=IMAGES_ROOT_DIR_SPLIT,
+        low_res_image_root=LOW_RES_IMAGES_ROOT,
+        crop_images_save_root=CROP_IMAGES_SAVE_ROOT,
+        target_image_size=TARGET_IMAGE_SIZE,
+    )
+    
+    ### Create splits
+    query_images, gallery_images = create_query_gallery_split(
+        all_image_infos, all_annotations
+    )
+
     for mode, img_info_set in zip(("query", "gallery"), (query_images, gallery_images)):
-        IMG_SOURCE = CROP_IMAGES_SAVE_ROOT
-        os.makedirs(os.path.join(IMG_SOURCE, mode), exist_ok=True)
+        (CROP_IMAGES_SAVE_ROOT / mode).mkdir(exist_ok=True, parents=True)
         for img_info in img_info_set:
             img_filename = img_info["file_name"]
             for name in ["test", "val"]:
-                source = os.path.join(IMG_SOURCE, name, img_filename)
+                source = os.path.join(CROP_IMAGES_SAVE_ROOT, name, img_filename)
                 if os.path.isfile(source):
-                    target_path = os.path.join(IMG_SOURCE, mode, img_filename)
+                    target_path = os.path.join(
+                        CROP_IMAGES_SAVE_ROOT, mode, img_filename
+                    )
                     shutil.copy(source, target_path)
-        #             continue
