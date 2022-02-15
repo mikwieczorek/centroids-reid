@@ -1,4 +1,5 @@
 .history
+*.ipynb
 ./logs*
 ./debugs*
 ./mlruns*
