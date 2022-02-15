@@ -145,6 +145,8 @@ def scatter_images_to_folders(
         # to remove "img/" from example like 'img/CLOTHING/Blouse/id_00005025' -> '/CLOTHING/Blouse/id_00005025' as we want high res images
         source_root = source.lstrip("img/")
         for file in files_in_dir:
+            if (dir_path / file).is_file():
+                continue
             shutil.copy(images_org_path / source_root / file, dir_path / file)
 
 
@@ -200,13 +202,15 @@ def crop_all_images(
         json_obj = {}
         images_info = []
         annos = []
-        root_dir = image_root_dir_split / subset_name
+        images_subset_root = image_root_dir_split / subset_name
 
-        for dir_name in os.listdir(root_dir):
+        for dir_name in os.listdir(images_subset_root):
+            if not (images_subset_root / dir_name).is_dir():
+                continue
             pair_id = global_product_pair_id_map[
                 dir_name
             ]  # Pair id is assumed to be the same for all items in a directory of template "id_xxxxxx"
-            dir_path = os.path.join(root_dir, dir_name)
+            dir_path = os.path.join(images_subset_root, dir_name)
             for file in os.listdir(dir_path):
                 new_filename = dir_name + "_" + file
                 source_filepath = os.path.join(dir_path, file)
@@ -296,7 +300,7 @@ def crop_all_images(
         ) as f:
             json.dump(json_obj, f)
 
-        return all_image_infos, all_annotations
+    return all_image_infos, all_annotations
 
 
 def create_query_gallery_split(root_dir, all_image_infos, all_annotations):
@@ -479,7 +483,7 @@ Script crops the bounding boxes and resizes them to the target size. Width x Hei
     ### Create splits
     log.info("Creating query and gallery splits...")
     query_images, gallery_images = create_query_gallery_split(
-        all_image_infos, all_annotations
+        ROOT_DIR, all_image_infos, all_annotations
     )
 
     log.info(
