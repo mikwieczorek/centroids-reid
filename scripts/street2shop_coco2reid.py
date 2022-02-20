@@ -5,7 +5,6 @@ import json
 import logging
 import os
 import shutil
-from collections import Counter
 from pathlib import Path
 from typing import List
 
@@ -14,7 +13,13 @@ from PIL import Image, ImageFile
 from tqdm import tqdm
 
 from data_utils import S2S_ORIGINAL_CATEGORIES as ORIGINAL_CATEGORIES
-from data_utils import create_annotations, create_image_info, load_json
+from data_utils import (
+    create_annotations,
+    create_image_info,
+    load_json,
+    _resize_thumbnail,
+    crop_single_bbox,
+)
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
@@ -292,34 +297,6 @@ def split_test_to_query_gallery(category_name: str, jsons_reid_per_category: dic
     gallery["annotations"] = list(gallery_annotations)
 
     return {f"query_{category_name}": query, f"gallery_{category_name}": gallery}
-
-
-def _resize_thumbnail(im: Image, target_image_size: tuple):
-    im.thumbnail(target_image_size, Image.ANTIALIAS)
-    new_image = Image.new("RGB", target_image_size, (255, 255, 255))
-    new_image.paste(
-        im,
-        (
-            int((target_image_size[0] - im.size[0]) / 2),
-            int((target_image_size[1] - im.size[1]) / 2),
-        ),
-    )
-
-    return new_image
-
-
-def crop_single_bbox(image, bbox, target_image_size: tuple):
-    img_arr = np.array(image)
-    bbox = np.asarray(bbox)
-    bbox_int = bbox.astype(np.int32)
-    x1, y1, bbox_w, bbox_h = bbox_int[:4]
-    x2 = x1 + bbox_w
-    y2 = y1 + bbox_h
-    cut_arr = img_arr[y1:y2, x1:x2]  # Cut-out the instance detected
-    im = Image.fromarray(cut_arr)
-    cut_arr = _resize_thumbnail(im, target_image_size)
-
-    return cut_arr
 
 
 def crop_train_images(

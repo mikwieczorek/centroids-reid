@@ -4,7 +4,6 @@ import os
 from pathlib import Path
 import concurrent
 from PIL import Image, ImageFile
-from tqdm import tqdm
 import concurrent.futures
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True

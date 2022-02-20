@@ -1,13 +1,20 @@
+import argparse
 import json
 import logging
 import os
 import shutil
 from collections import defaultdict
-import argparse
+from pathlib import Path
+
 import numpy as np
 from PIL import Image, ImageFile
-from tqdm import tqdm
-from pathlib import Path
+
+from data_utils import (
+    _resize_thumbnail,
+    create_annotations,
+    create_image_info,
+    crop_single_bbox,
+)
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
@@ -15,90 +22,6 @@ logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO"))
 log = logging.getLogger(__name__)
 
 SOURCES_DICT = {"1": "shop", "2": "user"}
-
-
-def load_json(json_abs_path):
-    return json.load(open(json_abs_path))
-
-
-def create_image_info(
-    image_id,
-    width,
-    height,
-    file_name,
-    license=0,
-    flickr_url="",
-    coco_url="",
-    data_captured="",
-):
-    image = {
-        "id": image_id,
-        "file_name": file_name,
-        "width": width,
-        "height": height,
-        "license": license,
-        "flickr_url": flickr_url,
-        "coco_url": coco_url,
-        "date_captured": data_captured,
-    }
-
-    return image
-
-
-def create_annotations(
-    anno_id,
-    image_id,
-    category_id,
-    source,
-    bbox="",
-    pair_id="",
-    style="",
-    segmentation="",
-    area=0,
-    iscrowd=0,
-):
-    annotation = {
-        "id": anno_id,
-        "image_id": image_id,
-        "category_id": category_id,
-        "segmentation": segmentation,
-        "area": area,
-        "bbox": bbox,
-        "iscrowd": iscrowd,
-        "pair_id": pair_id,
-        "style": style,
-        "source": source,
-    }
-
-    return annotation
-
-
-def _resize_thumbnail(im: Image, target_image_size: tuple):
-    im.thumbnail(target_image_size, Image.ANTIALIAS)
-    new_image = Image.new("RGB", target_image_size, (255, 255, 255))
-    new_image.paste(
-        im,
-        (
-            int((target_image_size[0] - im.size[0]) / 2),
-            int((target_image_size[1] - im.size[1]) / 2),
-        ),
-    )
-
-    return new_image
-
-
-def crop_single_bbox(image, bbox, target_image_size: tuple):
-    img_arr = np.array(image)
-    bbox = np.asarray(bbox)
-    bbox_int = bbox.astype(np.int32)
-    x1, y1, x2, y2 = bbox_int[:4]
-    #     x2 = x1 + bbox_w
-    #     y2 = y1 + bbox_h
-    cut_arr = img_arr[y1:y2, x1:x2]  # Cut-out the instance detected
-    im = Image.fromarray(cut_arr)
-    cut_arr = _resize_thumbnail(im, target_image_size)
-
-    return cut_arr
 
 
 def resize_low_res_bbox_to_high_res(low_res_bbox, low_res_w, low_res_h, w, h):
