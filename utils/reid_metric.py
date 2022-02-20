@@ -30,7 +30,6 @@ def get_euclidean(x, y, **kwargs):
         + torch.pow(y, 2).sum(dim=1, keepdim=True).expand(n, m).t()
     )
     distmat.addmm_(1, -2, x, y.t())
-    distmat = distmat.cpu().numpy()
     return distmat
 
 
