@@ -1,5 +1,4 @@
 import argparse
-import concurrent.futures
 import copy
 import glob
 import json
@@ -33,10 +32,6 @@ def create_global_to_pair_id_mapping(
     global_product_pair_id_map = {}
     unique_pair_id = 1
     for category_name in ORIGINAL_CATEGORIES:
-        category_id = category_name2category_id[category_name]
-        # style_idx = category_id
-        # print(category_name, category_id, style_idx)
-
         s2s_products2pair_ids = {}
 
         retrival_json = load_json(
@@ -67,7 +62,7 @@ def remap_raw_coco_to_pair_ids(
 ):
     ### remap dataset
     remapped_datasets = {}
-    for idx, category_name in enumerate(ORIGINAL_CATEGORIES):
+    for category_name in ORIGINAL_CATEGORIES:
         single_category_retrieva_map = global_product_pair_id_map[category_name]
 
         retrival_json = load_json(
@@ -92,19 +87,6 @@ def remap_raw_coco_to_pair_ids(
     return remapped_datasets
 
 
-def get_pair_ids_less_than_m_examples(annotations, m=2):
-    annotations_pair_ids = [item["pair_id"] for item in annotations]
-    counter = Counter(annotations_pair_ids)
-    pair_ids_less_than_m = np.array(
-        ([k for k, v in sorted(counter.items(), key=lambda item: item[1]) if v < m])
-    )
-
-    if len(pair_ids_less_than_m) != 0:
-        return pair_ids_less_than_m
-    else:
-        False
-
-
 def get_bbox_area(item):
     bbox_temp = item.get("bbox", None)
     if bbox_temp is not None:
@@ -122,22 +104,6 @@ def get_bbox_area(item):
     return bbox, area
 
 
-def get_train_test_file_stats(json_obj):
-    try:
-        photos = [item["photo"] for item in json_obj]
-        products = [item["product"] for item in json_obj]
-    except KeyError:
-        photos = [item["image_id"] for item in json_obj]
-        products = [item["pair_id"] for item in json_obj]
-
-    print(
-        f"Number of photos: {len(photos)} | Number of unique photos: {len(np.unique(photos))}"
-    )
-    print(
-        f"Number of products: {len(products)} | Number of unique products: {len(np.unique(products))}"
-    )
-
-
 def create_coco_json_with_unique_pair_id_per_category(
     category_name2category_id,
     remapped_datasets,
@@ -148,7 +114,6 @@ def create_coco_json_with_unique_pair_id_per_category(
     all_images_infos,
     all_json_image_ids,
     mode,
-    save_dir,
     jsons_reid_per_category,
 ):
     category_id = category_name2category_id[category_name]
@@ -165,10 +130,6 @@ def create_coco_json_with_unique_pair_id_per_category(
     all_products = []  # To easily retrieve products/pair_ids neede for the set
 
     json_data = remapped_datasets[f"{mode}_pairs_{category_name}.json"]
-    print("=" * 50)
-    print(f"Category: {category_name}")
-    print("Stats for original file:")
-    get_train_test_file_stats(json_data)
 
     for item in json_data:
         bbox_temp = item.get("bbox", None)
@@ -216,9 +177,6 @@ def create_coco_json_with_unique_pair_id_per_category(
         train_json = jsons_reid_per_category[f"train_{category_name}"]
         all_products = np.array([item["pair_id"] for item in train_json["annotations"]])
 
-    print("Stats after creting annotations")
-    get_train_test_file_stats(all_annos)
-
     retrival_json = np.array(
         remapped_datasets[f"retrieval_pairs_{category_name}.json"]
     )  # Contains only shop photos
@@ -263,11 +221,7 @@ def create_coco_json_with_unique_pair_id_per_category(
             )
         )
         anno_id += 1
-
     output_json["annotations"] = all_annos
-
-    print("Stats after creting annotations")
-    get_train_test_file_stats(all_annos)
 
     return {f"{mode}_{category_name}": output_json}
 
@@ -299,9 +253,7 @@ def create_info_for_all_images(images_dir):
     return all_images_infos, all_json_image_ids
 
 
-def split_test_to_query_gallery(
-    category_name: str, load_dir: str, jsons_reid_per_category: dict
-):
+def split_test_to_query_gallery(category_name: str, jsons_reid_per_category: dict):
     test = jsons_reid_per_category[f"test_{category_name}"]
 
     all_annotations = np.array(test["annotations"])
@@ -310,9 +262,7 @@ def split_test_to_query_gallery(
         [
             item["id"]
             for item in test["annotations"]
-            if item["source"] == "user"
-            and item["style"]
-            >= 0  ### TODO Style is deep fasion 2 attribute may be deleted
+            if item["source"] == "user" and item["style"] >= 0
         ]
     )
     users_annotations = list(
@@ -330,12 +280,9 @@ def split_test_to_query_gallery(
     )
 
     all_images = np.array(test["images"])
-    print(f"Number of all images in the set: {len(all_images)}")
     all_images_ids = np.array([item["id"] for item in all_images])
     user_images = all_images[np.isin(all_images_ids, users_annos_image_ids)]
     gallery_images = all_images[np.isin(all_images_ids, gallery_annos_image_ids)]
-    print(f"Number of users image ids after filtering images: {len(user_images)}")
-    print(f"Number of gallery image ids after filtering images: {len(gallery_images)}")
 
     query = test.copy()
     query["images"] = list(user_images)
@@ -343,19 +290,6 @@ def split_test_to_query_gallery(
     gallery = test.copy()
     gallery["images"] = list(gallery_images)
     gallery["annotations"] = list(gallery_annotations)
-    query_annotations_pair_ids = np.array(
-        [item["pair_id"] for item in users_annotations]
-    )
-    gallery_annotations_pair_ids = np.array(
-        [item["pair_id"] for item in gallery_annotations]
-    )
-
-    print(f"Len query['images']: {len(query['images'])}")
-    print(f"Len query['annotations']: {len(query['annotations'])}")
-    print(f"Number unique pair_ids: {len(np.unique(query_annotations_pair_ids))}")
-    print(f"Len gallery['images']: {len(gallery['images'])}")
-    print(f"Len gallery['annotations']: {len(gallery['annotations'])}")
-    print(f"Number unique pair_ids: {len(np.unique(gallery_annotations_pair_ids))}")
 
     return {f"query_{category_name}": query, f"gallery_{category_name}": gallery}
 
@@ -557,22 +491,8 @@ def merge_single_set_jsons(
         )
         all_images_info.extend(all_json_image_info_to_take)
 
-    print(f"Number of all annotations in the set {set_name}: {len(all_annos)}")
-    print(f"Number of all images in the set {set_name}: {len(all_image_ids)}")
     all_image_ids = list(np.unique(all_image_ids))
     all_image_ids = [int(item) for item in all_image_ids]
-    print(f"Number of UNIQUE images in the set {set_name}: {len(all_image_ids)}")
-
-    all_json_image_info_image_filenames = [
-        item["file_name"] for item in all_images_info
-    ]
-
-    print(
-        f"Number of all images file_names in images: {len(all_json_image_info_image_filenames)}"
-    )
-    print(
-        f"Number of unique images file_names in images: {len(np.unique(all_json_image_info_image_filenames))}"
-    )
 
     global_json = copy.deepcopy(set_single_category_json)
     global_json["images"] = list(all_images_info)
@@ -668,8 +588,6 @@ Script crops the bounding boxes and resizes them to the target size. Width x Hei
     jsons_reid_per_category = {}
     for mode in ORIGINAL_SUBSETS:
         log.info(f"Running script for {mode} data subset...")
-        if mode == "test":
-            print(mode)
         for category_name in ORIGINAL_CATEGORIES:
             log.info(f"Currently processed category {category_name}.")
             tmp_json = create_coco_json_with_unique_pair_id_per_category(
@@ -682,14 +600,13 @@ Script crops the bounding boxes and resizes them to the target size. Width x Hei
                 all_images_infos=all_images_infos,
                 all_json_image_ids=all_json_image_ids,
                 mode=mode,
-                save_dir=save_dir,
                 jsons_reid_per_category=jsons_reid_per_category,
             )
             jsons_reid_per_category.update(tmp_json)
 
             if mode == "test":
                 tmp_json = split_test_to_query_gallery(
-                    category_name, save_dir, jsons_reid_per_category
+                    category_name, jsons_reid_per_category
                 )
                 jsons_reid_per_category.update(tmp_json)
 
