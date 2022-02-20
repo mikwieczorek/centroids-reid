@@ -100,25 +100,9 @@ MODEL.PRETRAIN_PATH "logs/market1501/256_resnet50/train_ctl_model/version_0/chec
 Weights of trained CTL-Model on Market1501 and DuketMTMC-Reid are avaialable here [[link]](https://drive.google.com/drive/folders/1NWD2Q0JGasGm9HTcOy4ZqsIqK4-IfknK)
 
 ## Inference
+
 To run inference on an image dataset with a trained model you can use provided scripts in `inference` folder.
-
-### Creating embeddings
-Example command to create embeddings is shown below. More info can be found in `inference/README.md`.
-    
-Example train script for testing trained CTL-Model on Market1501
-```bash
-python inference/create_embeddings.py \
---config_file="configs/256_resnet50.yml" \
-GPU_IDS [0] \
-DATASETS.ROOT_DIR '/data/my-image-dataset/' \
-TEST.IMS_PER_BATCH 128 \
-OUTPUT_DIR './my-custom-dataset-embeddings/' \
-TEST.ONLY_TEST True \
-MODEL.PRETRAIN_PATH "logs/market1501/256_resnet50/train_ctl_model/version_0/checkpoints/epoch=119.ckpt"
-```
-
-### Getting similar images
-
+More info can be found in `inference/README.md`.
 
 ## **Citation**
 
