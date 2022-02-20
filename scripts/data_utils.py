@@ -6,6 +6,21 @@ import itertools
 import numpy as np
 
 
+S2S_ORIGINAL_CATEGORIES = [
+    "bags",
+    "belts",
+    "dresses",
+    "eyewear",
+    "footwear",
+    "hats",
+    "leggings",
+    "outerwear",
+    "pants",
+    "skirts",
+    "tops",
+]
+
+
 def check_if_file_exist(path):
     return os.path.isfile(path)
 
@@ -228,3 +243,57 @@ def create_index_of_images(save_dir, product_filenames):
     for item in zip(itertools.count(), product_filenames):
         temp.append(item)
     np.save(os.path.join(save_dir, f"index.npy"), np.array(temp))
+
+
+# Create annos
+def create_annotations(
+    anno_id,
+    image_id,
+    category_id,
+    bbox="",
+    pair_id="",
+    style="",
+    segmentation="",
+    source="",
+    area=0,
+    iscrowd=0,
+):
+    annotation = {
+        "id": int(anno_id),
+        "image_id": int(image_id),
+        "category_id": int(category_id),
+        "segmentation": segmentation,
+        "area": area,
+        "bbox": bbox,
+        "iscrowd": int(iscrowd),
+        "pair_id": int(pair_id),
+        "style": style,
+        "source": source,
+    }
+
+    return annotation
+
+
+### Create all images info
+def create_image_info(
+    image_id,
+    width,
+    height,
+    file_name,
+    license=0,
+    flickr_url="",
+    coco_url="",
+    data_captured="",
+):
+    image = {
+        "id": int(image_id),
+        "file_name": file_name,
+        "width": width,
+        "height": height,
+        "license": license,
+        "flickr_url": flickr_url,
+        "coco_url": coco_url,
+        "date_captured": data_captured,
+    }
+
+    return image

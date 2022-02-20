@@ -1,4 +1,7 @@
-from data_utils import *
+import json
+import os
+
+from data_utils import get_image_id, get_images_size
 
 
 class COCO_json(object):
@@ -19,7 +22,9 @@ class COCO_json(object):
             List of absolute paths that points to images from the dataset
     """
 
-    def __init__(self, images_dir, save_dir, categories_dict, sets, images_names, meta_dir):
+    def __init__(
+        self, images_dir, save_dir, categories_dict, sets, images_names, meta_dir
+    ):
         self.images_dir = images_dir
         self.save_dir = save_dir
         self.categories_dict = categories_dict

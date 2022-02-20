@@ -5,11 +5,11 @@ from pathlib import Path
 
 from coco_format_utils import COCO_json
 from data_format_transforms import transform_bbox_s2s_to_coco
+from data_utils import S2S_ORIGINAL_CATEGORIES as ORIGINAL_CATEGORIES
 from data_utils import (
     create_category_txt_filepaths,
     extract_json_data,
     load_all_images_paths_from_txt,
-    load_json,
     merge_train_test_subsets,
     save_json,
 )
@@ -65,10 +65,7 @@ if __name__ == "__main__":
 
     save_dir.mkdir(exists_ok=True, parents=False)
 
-    ## TODO Categories dict maybe put in some script as constant?
-    categories_dict = load_json(
-        "scripts/reid_centroid_fahion2coco/street2shop_nbs/original_format_to_coco/street2shop_categories.json"
-    )
+    categories_dict = {cat_name: num for num, cat_name in ORIGINAL_CATEGORIES}
 
     # Create single txt files with names of all images in train / test set
     extract_json_data(

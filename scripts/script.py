@@ -14,33 +14,19 @@ import numpy as np
 from PIL import Image, ImageFile
 from tqdm import tqdm
 
+from data_utils import S2S_ORIGINAL_CATEGORIES as ORIGINAL_CATEGORIES
+from data_utils import create_annotations, create_image_info, load_json
+
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO"))
 log = logging.getLogger(__name__)
 
-ORIGINAL_CATEGORIES = [
-    "bags",
-    "belts",
-    "dresses",
-    "eyewear",
-    "footwear",
-    "hats",
-    "leggings",
-    "outerwear",
-    "pants",
-    "skirts",
-    "tops",
-]
+
 ORIGINAL_SUBSETS = ["train", "test"]
 SET_NAMES = ["train", "query", "gallery"]
 
 
-def load_json(json_abs_path: str):
-    return json.load(open(json_abs_path))
-
-
-### global to unique pair id mapping
 def create_global_to_pair_id_mapping(
     load_json, ORIGINAL_CATEGORIES, meta_dir, category_name2category_id
 ):
@@ -104,60 +90,6 @@ def remap_raw_coco_to_pair_ids(
                 new_dataset.append(dic)
             remapped_datasets[f"{name}_pairs_{category_name}.json"] = new_dataset
     return remapped_datasets
-
-
-# Create annos
-def create_annotations(
-    anno_id,
-    image_id,
-    category_id,
-    bbox="",
-    pair_id="",
-    style="",
-    segmentation="",
-    source="",
-    area=0,
-    iscrowd=0,
-):
-    annotation = {
-        "id": int(anno_id),
-        "image_id": int(image_id),
-        "category_id": int(category_id),
-        "segmentation": segmentation,
-        "area": area,
-        "bbox": bbox,
-        "iscrowd": int(iscrowd),
-        "pair_id": int(pair_id),
-        "style": style,
-        "source": source,
-    }
-
-    return annotation
-
-
-### Create all images info
-def create_image_info(
-    image_id,
-    width,
-    height,
-    file_name,
-    license=0,
-    flickr_url="",
-    coco_url="",
-    data_captured="",
-):
-    image = {
-        "id": int(image_id),
-        "file_name": file_name,
-        "width": width,
-        "height": height,
-        "license": license,
-        "flickr_url": flickr_url,
-        "coco_url": coco_url,
-        "date_captured": data_captured,
-    }
-
-    return image
 
 
 def get_pair_ids_less_than_m_examples(annotations, m=2):
@@ -468,7 +400,6 @@ def crop_train_images(
     than one produt in the image.
     """
 
-    image_data_to_crop = []
     output = {}
 
     pair_id_temp_dict = {}  # To store (old_pairid, style) to map to new pair_ids
