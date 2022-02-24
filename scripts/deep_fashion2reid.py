@@ -65,7 +65,6 @@ def scatter_images_to_folders(
         dir_name = source_path.stem
         dir_path = images_root_dir_split / subset_name / dir_name
         dir_path.mkdir(parents=True, exist_ok=True)
-        # to remove "img/" from example like 'img/CLOTHING/Blouse/id_00005025' -> '/CLOTHING/Blouse/id_00005025' as we want high res images
         source_root = source.lstrip("img/")
         for file in files_in_dir:
             if (dir_path / file).is_file():
@@ -218,7 +217,7 @@ def crop_all_images(
 
         with open(
             root_dir
-            / f"{subset_name}_reid_cropped_{target_image_size[0]}_{target_image_size[1]}_new_github.json",  # TODO Rename
+            / f"{subset_name}_reid_cropped_{target_image_size[0]}_{target_image_size[1]}.json",
             "w",
         ) as f:
             json.dump(json_obj, f)
@@ -299,7 +298,7 @@ def create_query_gallery_split(root_dir, all_image_infos, all_annotations):
     json_obj["annotations"] = list(query_annotations)
     with open(
         root_dir
-        / f"query_reid_cropped_{TARGET_IMAGE_SIZE[0]}_{TARGET_IMAGE_SIZE[1]}_new_github.json",  ## TODO Rename
+        / f"query_reid_cropped_{TARGET_IMAGE_SIZE[0]}_{TARGET_IMAGE_SIZE[1]}.json",
         "w",
     ) as f:
         json.dump(json_obj, f)
@@ -311,7 +310,7 @@ def create_query_gallery_split(root_dir, all_image_infos, all_annotations):
     json_obj["annotations"] = gallery_annotations
     with open(
         root_dir
-        / f"gallery_reid_cropped_{TARGET_IMAGE_SIZE[0]}_{TARGET_IMAGE_SIZE[1]}_new_github.json",  # TODO Rename
+        / f"gallery_reid_cropped_{TARGET_IMAGE_SIZE[0]}_{TARGET_IMAGE_SIZE[1]}.json",
         "w",
     ) as f:
         json.dump(json_obj, f)
@@ -351,8 +350,7 @@ Script crops the bounding boxes and resizes them to the target size. Width x Hei
     IMAGES_ROOT_DIR_SPLIT = ROOT_DIR / "images_high_res_tmp"
     IMAGES_ROOT_DIR_SPLIT.mkdir(exist_ok=True)
     CROP_IMAGES_SAVE_ROOT = (
-        ROOT_DIR
-        / f"./{TARGET_IMAGE_SIZE[0]}_{TARGET_IMAGE_SIZE[1]}_cropped_images_new"  ## TODO Rename this
+        ROOT_DIR / f"./{TARGET_IMAGE_SIZE[0]}_{TARGET_IMAGE_SIZE[1]}_cropped_images"
     )
     CROP_IMAGES_SAVE_ROOT.mkdir(exist_ok=True)
     assert IMAGES_ORG_PATH.is_dir()

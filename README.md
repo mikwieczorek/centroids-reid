@@ -101,10 +101,26 @@ Weights of trained CTL-Model on Market1501 and DuketMTMC-Reid are avaialable her
 
 ## Inference
 
-To run inference on an image dataset with a trained model you can use provided scripts in `inference` folder.
+To run inference on an image dataset with a trained model you can use provided scripts in [`inference`](https://github.com/mikwieczorek/centroids-reid/tree/main/inference) folder.
 More info can be found in `inference/README.md`.
 
+
+## Fashion dataset to COCO-ReID format preparation
+
+Fashion datasets require transforming to COCO-Reid format. In [`scripts`](https://github.com/mikwieczorek/centroids-reid/tree/main/scripts) folder there is code necessary to prepare raw Street2Shop and DeepFashion annotation and images to correct format.
+More info can be found in `scripts/README.md`.
+
 ## **Citation**
+
+
+```
+Wieczorek M., Rychalska B., Dąbrowski J. 
+(2021) On the Unreasonable Effectiveness of Centroids in Image Retrieval.
+In: Mantoro T., Lee M., Ayu M.A., Wong K.W., Hidayanto A.N. (eds) 
+Neural Information Processing. ICONIP 2021.
+Lecture Notes in Computer Science, vol 13111. Springer, Cham. https://doi.org/10.1007/978-3-030-92273-3_18
+
+```
 
 ```
 @article{Wieczorek2021OnTU,

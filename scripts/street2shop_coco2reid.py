@@ -321,7 +321,7 @@ def crop_train_images(
     for category_name in ORIGINAL_CATEGORIES:
         TARGET_IMAGES_DIR = (
             root_dir
-            / f"images_cropped_{TARGET_IMAGE_SIZE[0]}_{TARGET_IMAGE_SIZE[1]}_new/{category_name}/"  ## TODO Rename this
+            / f"images_cropped_{TARGET_IMAGE_SIZE[0]}_{TARGET_IMAGE_SIZE[1]}/{category_name}/"
         )
         TARGET_TRAIN_IMAGES_DIR = TARGET_IMAGES_DIR / "train"
         GALLERY_IMAGES_DIR = TARGET_IMAGES_DIR / "gallery"
@@ -366,30 +366,22 @@ def crop_train_images(
                     old_filename, ext = os.path.splitext(im_filename)
                     new_filename = old_filename + f"_{anno_style}_{img_idx}" + ext
 
-                    if os.path.isfile(
-                        images_dir / im_filename
-                    ):  #### TODO REMOVE THIS LINE
-                        if not os.path.isfile(
-                            IMAGE_SAVE_DIR / new_filename
-                        ):  ## TODO This line remove
-                            image_open = Image.open(images_dir / im_filename)
-                            if anno_bbox != "":
-                                anno_bbox = np.asarray(anno["bbox"]).astype(np.int32)
-                                if (
-                                    anno_bbox[3] != 0
-                                    and anno_bbox[2] != 0
-                                    and anno_area >= MINIMUM_BBOX_AREA
-                                ):  # Remove all annotations that have width/height==0, or small area
-                                    cropped = crop_single_bbox(
-                                        image_open, anno_bbox, TARGET_IMAGE_SIZE
-                                    )
-                                else:
-                                    continue
-                            else:
-                                cropped = _resize_thumbnail(
-                                    image_open, TARGET_IMAGE_SIZE
-                                )
-                            cropped.save(IMAGE_SAVE_DIR / new_filename)
+                    image_open = Image.open(images_dir / im_filename)
+                    if anno_bbox != "":
+                        anno_bbox = np.asarray(anno["bbox"]).astype(np.int32)
+                        if (
+                            anno_bbox[3] != 0
+                            and anno_bbox[2] != 0
+                            and anno_area >= MINIMUM_BBOX_AREA
+                        ):
+                            cropped = crop_single_bbox(
+                                image_open, anno_bbox, TARGET_IMAGE_SIZE
+                            )
+                        else:
+                            continue
+                    else:
+                        cropped = _resize_thumbnail(image_open, TARGET_IMAGE_SIZE)
+                    cropped.save(IMAGE_SAVE_DIR / new_filename)
 
                     if (anno_pair_id, anno_style) not in pair_id_temp_dict:
                         pair_id_temp_dict[(anno_pair_id, anno_style)] = next_pair_id
@@ -606,12 +598,10 @@ Script crops the bounding boxes and resizes them to the target size. Width x Hei
         )
 
     CROPPED_IMAGES_SOURCE_ROOT_DIR = (
-        root_dir
-        / f"images_cropped_{TARGET_IMAGE_SIZE[0]}_{TARGET_IMAGE_SIZE[1]}_new"  ## TODO Rename this
+        root_dir / f"images_cropped_{TARGET_IMAGE_SIZE[0]}_{TARGET_IMAGE_SIZE[1]}"
     )
     CROPPED_IMAGES_TARGET_ROOT_DIR = (
-        root_dir
-        / f"images_reid_cropped_{TARGET_IMAGE_SIZE[0]}_{TARGET_IMAGE_SIZE[1]}_new"
+        root_dir / f"images_reid_cropped_{TARGET_IMAGE_SIZE[0]}_{TARGET_IMAGE_SIZE[1]}"
     )
     log.info(
         f"Final processing of images. Scattering them to correctly arranged folders. May take some time..."
