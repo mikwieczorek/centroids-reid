@@ -1,5 +1,4 @@
 # Fashion data to ReID format
-
 ## Street2Shop
 
 In order to transform raw Street2Shop dataset to COCO-ReID format follow the scripts in the directory as:
@@ -33,7 +32,7 @@ python street2shop2coco.py \
 --root-dir-path /path/to/s2s \
 --metadata-dir meta \
 --images-dir images_jpg \
---save-dir meta_coco
+--save-dir meta
 ```
 
 ### Street2Shos to ReID
@@ -44,11 +43,11 @@ Full split to val/test and query/gallery subsets will be produced allowing to tr
 Example:
 ```bash
 python street2shop_coco2reid.py \
---train-json-path /path/to/s2s/meta_coco/all_street_train.json \
+--train-json-path /path/to/s2s/meta/all_street_train.json \
 --root-dir-path /path/to/s2s \
---metadata-dir meta_coco \
+--metadata-dir meta \
 --images-dir images_jpg \
---save-dir meta_coco \
+--save-dir meta_reid \
 --target-image-size [320, 320] \
 --minimum-bbox-area 1
 ```

@@ -63,9 +63,11 @@ if __name__ == "__main__":
     train_file_path = save_dir / train_all_filename
     coco_json_save_path = save_dir / coco_json_save_name
 
-    save_dir.mkdir(exists_ok=True, parents=False)
+    save_dir.mkdir(exist_ok=True, parents=False)
 
-    categories_dict = {cat_name: num for num, cat_name in ORIGINAL_CATEGORIES}
+    categories_dict = {
+        cat_name: num for num, cat_name in enumerate(ORIGINAL_CATEGORIES)
+    }
 
     # Create single txt files with names of all images in train / test set
     extract_json_data(
