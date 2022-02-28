@@ -71,7 +71,7 @@ if __name__ == "__main__":
 
     # Create single txt files with names of all images in train / test set
     extract_json_data(
-        jsons_path=meta_dir,
+        jsons_path=meta_dir / "json",
         save_dir=save_dir,
         save_filename=train_filename,
         key_name="photo",
@@ -79,7 +79,7 @@ if __name__ == "__main__":
         mode="train",
     )
     extract_json_data(
-        jsons_path=meta_dir,
+        jsons_path=meta_dir / "json",
         save_dir=save_dir,
         save_filename=test_filename,
         key_name="photo",

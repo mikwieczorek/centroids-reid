@@ -121,7 +121,9 @@ class COCO_json(object):
         self.categories = []
         for sett in self.sets:
             for category in list(self.categories_dict.keys()):
-                filepath = os.path.join(self.meta_dir, f"{sett}_pairs_{category}.json")
+                filepath = os.path.join(
+                    self.meta_dir, "json", f"{sett}_pairs_{category}.json"
+                )
 
                 json_file = json.load(open(filepath))
 

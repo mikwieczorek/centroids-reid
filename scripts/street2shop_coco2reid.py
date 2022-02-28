@@ -40,13 +40,13 @@ def create_global_to_pair_id_mapping(
         s2s_products2pair_ids = {}
 
         retrival_json = load_json(
-            meta_dir / f"retrieval_{category_name}.json"
+            meta_dir / "json" / f"retrieval_{category_name}.json"
         )  # Contains only shop photos
         train_json = load_json(
-            meta_dir / f"train_pairs_{category_name}.json"
+            meta_dir / "json" / f"train_pairs_{category_name}.json"
         )  # Contains only train street photos
         test_json = load_json(
-            meta_dir / f"test_pairs_{category_name}.json"
+            meta_dir / "json" / f"test_pairs_{category_name}.json"
         )  # Contains only test street photos
         single_category_all_jsons = train_json + test_json + retrival_json
 
@@ -71,13 +71,13 @@ def remap_raw_coco_to_pair_ids(
         single_category_retrieva_map = global_product_pair_id_map[category_name]
 
         retrival_json = load_json(
-            meta_dir / f"retrieval_{category_name}.json"
+            meta_dir / "json" / f"retrieval_{category_name}.json"
         )  # Contains only shop photos
         train_json = load_json(
-            meta_dir / f"train_pairs_{category_name}.json"
+            meta_dir / "json" / f"train_pairs_{category_name}.json"
         )  # Contains only train street photos
         test_json = load_json(
-            meta_dir / f"test_pairs_{category_name}.json"
+            meta_dir / "json" / f"test_pairs_{category_name}.json"
         )  # Contains only test street photos
 
         for name, dataset in zip(

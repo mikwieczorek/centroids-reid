@@ -89,7 +89,7 @@ def get_image_id(image_name):
 def select_products_ids(categories, meta_dir):
     product_photos = set()  # Set to disallow duplicates
     for category in categories:
-        filepath = os.path.join(meta_dir, f"retrieval_{category}.json")
+        filepath = os.path.join(meta_dir, "json", f"retrieval_{category}.json")
         json_file = json.load(open(filepath))
         for item in json_file:
             product_photos.add(item["photo"])
