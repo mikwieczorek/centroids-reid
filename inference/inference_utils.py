@@ -91,7 +91,7 @@ def make_inference_data_loader(cfg, path, dataset_class):
     transforms_base = ReidTransforms(cfg)
     val_transforms = transforms_base.build_transforms(is_train=False)
     num_workers = cfg.DATALOADER.NUM_WORKERS
-    val_set = ImageDataset(path, val_transforms)
+    val_set = dataset_class(path, val_transforms)
     val_loader = DataLoader(
         val_set,
         batch_size=cfg.TEST.IMS_PER_BATCH,
