@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 
 import numpy as np
+import torch
 
 sys.path.append(".")
 
@@ -31,7 +32,6 @@ exctract_func = (
 exctract_func = lambda x: Path(
     x
 ).parent.name  ## To extract pid from parent directory of an iamge. Example: /path/to/root/001/image_04.jpg -> pid = 001
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -74,11 +74,12 @@ if __name__ == "__main__":
 
     ### Build model
     model = CTLModel.load_from_checkpoint(cfg.MODEL.PRETRAIN_PATH)
+    use_cuda = True if torch.cuda.is_available() and cfg.GPU_IDS else False
 
     ### Inference
     log.info("Running inference")
     embeddings, paths = run_inference(
-        model, val_loader, cfg, print_freq=args.print_freq
+        model, val_loader, cfg, print_freq=args.print_freq, use_cuda=use_cuda
     )
 
     ### Create centroids
