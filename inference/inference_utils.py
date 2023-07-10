@@ -89,15 +89,20 @@ class ImageDataset(Dataset):
 
 def make_inference_data_loader(cfg, path, dataset_class):
     transforms_base = ReidTransforms(cfg)
+
     val_transforms = transforms_base.build_transforms(is_train=False)
+
     num_workers = cfg.DATALOADER.NUM_WORKERS
+
     val_set = dataset_class(path, val_transforms)
+
     val_loader = DataLoader(
         val_set,
         batch_size=cfg.TEST.IMS_PER_BATCH,
         shuffle=False,
         num_workers=num_workers,
     )
+
     return val_loader
 
 
@@ -121,13 +126,16 @@ def run_inference(model, val_loader, cfg, print_freq, use_cuda):
     for pos, x in enumerate(val_loader):
         if pos % print_freq == 0:
             log.info(f"Number of processed images: {pos*cfg.TEST.IMS_PER_BATCH}")
+
         embedding, path = _inference(model, x, use_cuda)
+
         for vv, pp in zip(embedding, path):
             paths.append(pp)
             embeddings.append(vv.detach().cpu().numpy())
 
     embeddings = np.array(np.vstack(embeddings))
     paths = np.array(paths)
+
     return embeddings, paths
 
 

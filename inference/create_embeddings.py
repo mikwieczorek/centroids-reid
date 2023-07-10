@@ -57,38 +57,51 @@ if __name__ == "__main__":
         default=None,
         nargs=argparse.REMAINDER,
     )
+
     args = parser.parse_args()
     if args.config_file != "":
         cfg.merge_from_file(args.config_file)
     cfg.merge_from_list(args.opts)
 
+
     ### Data preparation
+
     if args.images_in_subfolders:
         dataset_type = ImageFolderWithPaths
     else:
         dataset_type = ImageDataset
+
     log.info(f"Preparing data using {dataset_type} dataset class")
+
     val_loader = make_inference_data_loader(cfg, cfg.DATASETS.ROOT_DIR, dataset_type)
+
     if len(val_loader) == 0:
         raise RuntimeError("Lenght of dataloader = 0")
 
+
     ### Build model
+
     model = CTLModel.load_from_checkpoint(cfg.MODEL.PRETRAIN_PATH)
     use_cuda = True if torch.cuda.is_available() and cfg.GPU_IDS else False
 
     ### Inference
+
     log.info("Running inference")
     embeddings, paths = run_inference(
         model, val_loader, cfg, print_freq=args.print_freq, use_cuda=use_cuda
     )
 
+
     ### Create centroids
+
     log.info("Creating centroids")
     if cfg.MODEL.USE_CENTROIDS:
         pid_path_index = create_pid_path_index(paths=paths, func=exctract_func)
         embeddings, paths = calculate_centroids(embeddings, pid_path_index)
 
+
     ### Save
+
     SAVE_DIR = Path(cfg.OUTPUT_DIR)
     SAVE_DIR.mkdir(exist_ok=True, parents=True)
 

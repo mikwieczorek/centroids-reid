@@ -5,14 +5,14 @@
 
 import os
 
-from pytorch_lightning.callbacks.base import Callback
+from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.utilities import rank_zero_only
 
 
 class ModelCheckpointPeriodic(Callback):
     """
     ModelCheckpoint handler can be used to periodically save objects to disk.
-    
+
     Args:
         dirname (str):
             Directory path where objects will be saved.
@@ -57,7 +57,7 @@ class ModelCheckpointPeriodic(Callback):
     def on_epoch_end(self, trainer, pl_module):
         assert trainer.is_global_zero, f'Periodic model checkpointer should only save from process number 0! Got: {trainer.global_rank}'
 
-        current_epoch = trainer.current_epoch 
+        current_epoch = trainer.current_epoch
 
         if (current_epoch % self._save_interval) != 0:
             return

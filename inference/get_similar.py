@@ -70,7 +70,9 @@ if __name__ == "__main__":
         cfg.merge_from_file(args.config_file)
     cfg.merge_from_list(args.opts)
 
+
     ### Data preparation
+
     if args.images_in_subfolders:
         dataset_type = ImageFolderWithPaths
     else:
@@ -78,16 +80,22 @@ if __name__ == "__main__":
     log.info(f"Preparing data using {type(dataset_type)} dataset class")
     val_loader = make_inference_data_loader(cfg, cfg.DATASETS.ROOT_DIR, dataset_type)
 
+
     ### Build model
+
     model = CTLModel.load_from_checkpoint(cfg.MODEL.PRETRAIN_PATH)
 
+
     ### Inference
+
     log.info("Running inference")
     embeddings, paths = run_inference(
-        model, val_loader, cfg, print_freq=args.print_freq
+        model, val_loader, cfg, print_freq=args.print_freq, use_cuda=True
     )
 
+
     ### Load gallery data
+
     LOAD_PATH = Path(args.gallery_data)
     embeddings_gallery = torch.from_numpy(
         np.load(LOAD_PATH / "embeddings.npy", allow_pickle=True)
@@ -104,18 +112,27 @@ if __name__ == "__main__":
     else:
         embeddings = torch.from_numpy(embeddings)
 
+
     # Use GPU if available
+
     device = torch.device("cuda") if cfg.GPU_IDS else torch.device("cpu")
     embeddings_gallery = embeddings_gallery.to(device)
     embeddings = embeddings.to(device)
 
+
     ### Calculate similarity
+
     log.info("Calculating distance and getting the most similar ids per query")
+
     dist_func = get_dist_func(cfg.SOLVER.DISTANCE_FUNC)
+
     distmat = dist_func(x=embeddings, y=embeddings_gallery).cpu().numpy()
+
     indices = np.argsort(distmat, axis=1)
 
+
     ### Constrain the results to only topk most similar ids
+
     indices = indices[:, : args.topk] if args.topk else indices
 
     out = {
@@ -133,5 +150,6 @@ if __name__ == "__main__":
 
     log.info(f"Saving results to {str(SAVE_DIR)}")
     np.save(SAVE_DIR / "results.npy", out)
+    embeddings = embeddings.cpu().numpy()
     np.save(SAVE_DIR / "query_embeddings.npy", embeddings)
     np.save(SAVE_DIR / "query_paths.npy", paths)
