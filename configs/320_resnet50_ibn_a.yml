@@ -1,8 +1,19 @@
 MODEL:
   NAME: 'resnet50_ibn_a'
   BACKBONE_EMB_SIZE: 2048
-  PRETRAIN_PATH: './models/r50_ibn_a.pth'
+  PRETRAIN_PATH: 'centroids-reid-market1501.ckpt'
   KEEP_CAMID_CENTROIDS: True
+
+GPU_IDS: [0]
+
+OUTPUT_DIR: 'similarity-outputs'
+
+DATASETS:
+  ROOT_DIR: 'gallery-images'
+
+TEST:
+  IMS_PER_BATCH: 128
+  ONLY_TEST: True
 
 INPUT:
   SIZE_TRAIN: [320,320]
@@ -16,6 +27,7 @@ SOLVER:
   OPTIMIZER_NAME: "Adam"
   MAX_EPOCHS: 120
   EVAL_PERIOD: 40
+  DISTANCE_FUNC: "cosine"
 
 USE_MIXED_PRECISION: True
 

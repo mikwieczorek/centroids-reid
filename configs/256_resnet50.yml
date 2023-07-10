@@ -1,12 +1,23 @@
 MODEL:
   NAME: 'resnet50'
   BACKBONE_EMB_SIZE: 2048
-  PRETRAIN_PATH: './models/resnet50-19c8e357.pth'
+  PRETRAIN_PATH: 'centroids-reid-market1501.ckpt'
   KEEP_CAMID_CENTROIDS: True
+
+GPU_IDS: [0]
 
 INPUT:
   SIZE_TRAIN: [256,128]
   SIZE_TEST: [256,128]
+
+TEST:
+  IMS_PER_BATCH: 128
+  ONLY_TEST: True
+
+DATASETS:
+  ROOT_DIR: 'query-images'
+
+OUTPUT_DIR: 'query-outputs'
 
 DATALOADER:
   NUM_INSTANCE: 4
